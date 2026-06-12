@@ -12,11 +12,11 @@
 #      Windows' ~32 KB CreateProcess argv limit. Stdin avoids the cap but
 #      forecloses interactive permission prompts.
 #
-# Run from your PROJECT ROOT (so .scratch/ and git history resolve correctly).
+# Run from your PROJECT ROOT (so docs/afk-workflow/ and git history resolve correctly).
 #
 # Usage: /path/to/once.sh [issues_glob]
-#   issues_glob  optional; defaults to ".scratch/*/issues/*.md" (the
-#                local-markdown convention from setup-matt-pocock-skills).
+#   issues_glob  optional; defaults to "docs/afk-workflow/backlog/*/issues/*.md"
+#                (the local-markdown convention from setup-matt-pocock-skills).
 #                For GitHub/GitLab trackers, swap the `issues=` line below for
 #                `gh issue list ...` / `glab issue list ...`.
 
@@ -44,7 +44,7 @@ fi
 # so the claude binary at ~/.local/bin may not be on PATH. Add it explicitly.
 export PATH="$HOME/.local/bin:$PATH"
 
-ISSUES_GLOB="${1:-.scratch/*/issues/*.md}"
+ISSUES_GLOB="${1:-docs/afk-workflow/backlog/*/issues/*.md}"
 
 issues=$(cat $ISSUES_GLOB 2>/dev/null || echo "No issues found")
 commits=$(git log -n 5 --format="%H%n%ad%n%B---" --date=short 2>/dev/null || echo "No commits found")

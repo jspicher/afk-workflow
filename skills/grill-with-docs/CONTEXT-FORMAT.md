@@ -48,9 +48,9 @@ _Avoid_: Client, buyer, account
 
 ## Single vs multi-context repos
 
-**Single context (most repos):** One `CONTEXT.md` at the repo root.
+**Single context (most repos):** One `docs/afk-workflow/context/CONTEXT.md`.
 
-**Multiple contexts:** A `CONTEXT-MAP.md` at the repo root lists the contexts, where they live, and how they relate to each other:
+**Multiple contexts:** A `docs/afk-workflow/context/CONTEXT-MAP.md` lists the contexts, where they live, and how they relate to each other:
 
 ```md
 # Context Map
@@ -70,8 +70,8 @@ _Avoid_: Client, buyer, account
 
 The skill infers which structure applies:
 
-- If `CONTEXT-MAP.md` exists, read it to find contexts
-- If only a root `CONTEXT.md` exists, single context
-- If neither exists, create a root `CONTEXT.md` lazily when the first term is resolved
+- If `docs/afk-workflow/context/CONTEXT-MAP.md` exists, read it to find contexts
+- If only `docs/afk-workflow/context/CONTEXT.md` exists, single context
+- If neither exists, create `docs/afk-workflow/context/CONTEXT.md` lazily when the first term is resolved
 
 When multiple contexts exist, infer which one the current topic relates to. If unclear, ask.

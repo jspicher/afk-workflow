@@ -11,8 +11,8 @@
     {
       "name": "afk-workflow",
       "source": "./",
-      "description": "grill -> PRD -> vertical-slice issues -> triage -> TDD, plus a headless Ralph AFK loop. 11 skills + runner scripts + per-repo setup command.",
-      "version": "0.1.0",
+      "description": "grill -> PRD -> vertical-slice issues -> triage -> TDD, plus a headless Ralph AFK loop. 13 skills + runner scripts + per-repo setup command.",
+      "version": "0.2.0",
       "keywords": ["afk", "ralph", "tdd", "prd", "agentic", "matt-pocock", "vertical-slices", "workflow"]
     }
   ]

@@ -5,7 +5,9 @@
 *.swp
 *~
 
-# Local issue/PRD scratch space (the local-markdown tracker convention).
-# Ignored here so the plugin repo never carries a consumer project's backlog;
-# in a CONSUMING project you may want to track .scratch/ -- that's your call.
+# Local issue/PRD backlog (the local-markdown tracker convention now lives at
+# docs/afk-workflow/backlog/). Ignored here so the plugin repo never carries a
+# consumer project's backlog if the workflow is ever run inside it; in a
+# CONSUMING project you may want to track it -- that's your call.
+docs/afk-workflow/backlog/
 .scratch/

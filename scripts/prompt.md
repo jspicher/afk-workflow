@@ -1,8 +1,8 @@
 # ISSUES
 
-Issue files are provided at the start of context as concatenated markdown from the project's local issue directory (by default `.scratch/<feature>/issues/*.md`). Parse it to get the open issues with their bodies and any inline comments. If this project uses a GitHub/GitLab tracker instead, the issues will have been passed in from `gh issue list` / `glab issue list`.
+Issue files are provided at the start of context as concatenated markdown from the project's local issue directory (by default `docs/afk-workflow/backlog/<feature>/issues/*.md`). Parse it to get the open issues with their bodies and any inline comments. If this project uses a GitHub/GitLab tracker instead, the issues will have been passed in from `gh issue list` / `glab issue list`.
 
-You will work on the AFK issues only -- those whose `Status:` line is `ready-for-agent`. Skip any issue in any other canonical state: `needs-triage`, `needs-info`, `ready-for-human`, `wontfix`, or `done`. The full canonical vocabulary lives in `docs/agents/triage-labels.md`.
+You will work on the AFK issues only -- those whose `Status:` line is `ready-for-agent`. Skip any issue in any other canonical state: `needs-triage`, `needs-info`, `ready-for-human`, `wontfix`, or `done`. The full canonical vocabulary lives in `docs/afk-workflow/config/triage-labels.md`.
 
 You've also been passed the last few commits. Review these to understand what work has been done.
 
@@ -65,7 +65,7 @@ Follow the project's commit conventions (check `CLAUDE.md` / `AGENTS.md` for att
 
 # THE ISSUE FILE
 
-Always update the issue file's `Status:` line and append a `## Progress` note (with a date stamp) describing what was done, what remains, and any blockers. The canonical vocabulary lives in `docs/agents/triage-labels.md`. Pick the status that best matches the outcome:
+Always update the issue file's `Status:` line and append a `## Progress` note (with a date stamp) describing what was done, what remains, and any blockers. The canonical vocabulary lives in `docs/afk-workflow/config/triage-labels.md`. Pick the status that best matches the outcome:
 
 **You may set:**
 

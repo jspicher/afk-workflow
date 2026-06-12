@@ -15,7 +15,7 @@
 #
 # Usage: /path/to/afk.sh <max_iterations> [issues_glob]
 #   max_iterations  required; hard cap on loop count
-#   issues_glob     optional; defaults to ".scratch/*/issues/*.md"
+#   issues_glob     optional; defaults to "docs/afk-workflow/backlog/*/issues/*.md"
 #
 # Requires: jq, mktemp (Git Bash / WSL ship both).
 
@@ -44,7 +44,7 @@ if [ -z "${1:-}" ]; then
 fi
 
 MAX_ITERATIONS=$1
-ISSUES_GLOB="${2:-.scratch/*/issues/*.md}"
+ISSUES_GLOB="${2:-docs/afk-workflow/backlog/*/issues/*.md}"
 
 # jq filter to extract streaming text from assistant messages
 stream_text='select(.type == "assistant").message.content[]? | select(.type == "text").text // empty | gsub("\n"; "\r\n") | . + "\r\n\n"'

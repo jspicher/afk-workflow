@@ -1,6 +1,6 @@
 ---
 description: Run one in-session AFK (Ralph) iteration -- pick the next ready-for-agent issue and implement it with TDD
-argument-hint: "[issues-glob | issue-ref] (default .scratch/*/issues/*.md)"
+argument-hint: "[issues-glob | issue-ref] (default docs/afk-workflow/backlog/*/issues/*.md)"
 ---
 
 You are running one in-session AFK (Ralph) iteration. This is the interactive
@@ -12,8 +12,8 @@ able to watch and intervene.
 
 Read the open issues. If the user passed an argument, treat it as either a glob
 of issue files or a single issue reference and load that. Otherwise default to
-the local-markdown convention: read `.scratch/*/issues/*.md`. If this project
-uses a GitHub/GitLab tracker (see `docs/agents/issue-tracker.md`), list issues
+the local-markdown convention: read `docs/afk-workflow/backlog/*/issues/*.md`. If this
+project uses a GitHub/GitLab tracker (see `docs/afk-workflow/config/issue-tracker.md`), list issues
 from there instead.
 
 Also review the last few commits (`git log -n 5`) to understand recent work.
