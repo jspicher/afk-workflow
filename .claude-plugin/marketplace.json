@@ -1,0 +1,19 @@
+{
+  "name": "afk-workflow",
+  "owner": {
+    "name": "jspicher",
+    "url": "https://github.com/jspicher"
+  },
+  "metadata": {
+    "description": "Matt Pocock's AFK / Ralph engineering workflow, packaged for reuse across repos."
+  },
+  "plugins": [
+    {
+      "name": "afk-workflow",
+      "source": "./",
+      "description": "grill -> PRD -> vertical-slice issues -> triage -> TDD, plus a headless Ralph AFK loop. 11 skills + runner scripts + per-repo setup command.",
+      "version": "0.1.0",
+      "keywords": ["afk", "ralph", "tdd", "prd", "agentic", "matt-pocock", "vertical-slices", "workflow"]
+    }
+  ]
+}

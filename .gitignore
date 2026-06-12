@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# Editor cruft
+*.swp
+*~
+
+# Local issue/PRD scratch space (the local-markdown tracker convention).
+# Ignored here so the plugin repo never carries a consumer project's backlog;
+# in a CONSUMING project you may want to track .scratch/ -- that's your call.
+.scratch/
