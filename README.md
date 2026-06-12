@@ -18,23 +18,61 @@ skills where your issues, triage labels, and domain docs live.
 ## The workflow
 
 Pocock splits the work into a human **day shift** (planning) and an autonomous
-**night shift** (AFK implementation):
+**night shift** (AFK implementation). Solid arrows are the **required** path;
+dashed branches are **optional** helpers you reach for when you need them.
 
-```
-  DAY SHIFT (human in the loop)                 NIGHT SHIFT (AFK)
-  ───────────────────────────────              ──────────────────
-  /grill-with-docs   resolve ambiguity,         scripts/afk.sh N
-       │             write CONTEXT.md + ADRs        │  loop until
-  /to-prd            conversation → PRD             │  <promise>NO MORE TASKS</promise>
-       │                                            │
-  /to-issues         PRD → vertical-slice issues    └─ each iteration:
-       │             (tracer bullets, DAG deps)         pick next ready-for-agent
-  /triage            label the whole board            issue → /tdd → gate → commit
-       │             (one pass, all issues)
-   [ hand off ] ─────────────────────────────────►
+```mermaid
+flowchart TD
+    A([New repo]) ==> B["/setup-matt-pocock-skills<br/>scaffold docs/afk-workflow/ config + CLAUDE.md block"]
+
+    B ==> C{{"DAY SHIFT - plan with a human"}}
+
+    C -. optional .-> D["/grill-me or /grill-with-docs<br/>stress-test the plan; write CONTEXT.md + ADRs"]
+    C -. optional .-> E["/to-prd<br/>turn the conversation into a PRD"]
+    C -. report bugs .-> F["/qa<br/>conversational bug intake, files issues"]
+    D -.-> G
+    E -.-> G
+    C ==> G["/to-issues<br/>plan or PRD into vertical-slice issues"]
+    F -.-> H
+    G ==> H["/triage<br/>label the board, move issues to ready-for-agent"]
+
+    H ==> I{{"NIGHT SHIFT - AFK implementation"}}
+    I ==> J["scripts/afk.sh N (terminal loop)<br/>or /afk (one in-session pass) or scripts/once.sh (smoke test)"]
+    J ==> K["each iteration: pick a ready-for-agent issue,<br/>/tdd, pre-commit gate, commit, update Status"]
+    K -. hard bug .-> L["/diagnose"]
+    K -. refactor or reset .-> M["/improve-codebase-architecture<br/>/zoom-out, /caveman"]
+    L -.-> K
+    M -.-> K
+    K ==> N{"&lt;promise&gt;NO MORE TASKS&lt;/promise&gt;<br/>or iteration cap reached?"}
+    N -. not yet .-> K
+    N == done ==> O["YOU: QA, impose taste, queue new issues"]
+    O -. next cycle .-> C
+
+    classDef req fill:#1f6feb,stroke:#0b3d91,color:#ffffff;
+    classDef opt fill:#ffffff,stroke:#9aa0a6,stroke-dasharray:5 5,color:#202124;
+    class B,G,H,J,K,O req;
+    class D,E,F,L,M opt;
 ```
 
-Then **you** re-enter the loop to QA, impose taste, and queue new issues.
+### Commands, in order
+
+| # | Step | Command | Required? |
+|---|---|---|---|
+| 1 | Set up the repo (once) | `/setup-matt-pocock-skills` | **Required** |
+| 2 | Stress-test the plan | `/grill-me` or `/grill-with-docs` | Optional |
+| 3 | Write a PRD | `/to-prd` | Optional |
+| 4 | Create the backlog | `/to-issues` | **Required** \* |
+| - | (alt) File bugs conversationally | `/qa` | Optional |
+| 5 | Label the board | `/triage` (to `ready-for-agent`) | **Required** |
+| 6 | Run the night shift | `scripts/afk.sh N` (or `/afk`, or `scripts/once.sh`) | **Required** |
+| - | ...during build: a hard bug | `/diagnose` | Optional |
+| - | ...during build: messy code | `/improve-codebase-architecture`, `/zoom-out`, `/caveman` | Optional |
+| 7 | Re-enter the loop | you: QA, queue new issues, repeat | -- |
+
+\* You need *some* issues in `ready-for-agent` state before the loop does
+anything. Get them there with `/to-issues` (from a plan/PRD), `/qa` (from bug
+reports), or by hand-writing files under `docs/afk-workflow/backlog/<feature>/issues/`.
+Step 6's loop runs `/tdd` on each issue automatically -- you don't invoke it directly.
 
 ## Install
 
