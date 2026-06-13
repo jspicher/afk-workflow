@@ -166,6 +166,14 @@ docs/afk-workflow/
 To remove the workflow's footprint, delete `docs/afk-workflow/` and the
 `## Agent skills` block from `CLAUDE.md`/`AGENTS.md`.
 
+> **`.gitignore` note:** these files are meant to be committed so they travel
+> with the branch. But **check your `.gitignore` first** -- some repos ignore all
+> of `docs/` (e.g. a `/docs/*` rule), which silently excludes the runner scripts
+> **and** your issue files. That's fine for running the loop locally (the scripts
+> and `afk.sh`'s issue glob read from disk, not git), but if you want them tracked
+> and shared, `git add -f docs/afk-workflow/...` or add a `!docs/afk-workflow/`
+> negation rule.
+
 > **Multi-context monorepos:** per-context `CONTEXT.md` + ADRs stay co-located
 > with their `src/<context>/` code; only `CONTEXT-MAP.md` and system-wide ADRs
 > live under `docs/afk-workflow/`.
