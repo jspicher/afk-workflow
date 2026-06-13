@@ -5,7 +5,7 @@ A portable Claude Code **marketplace plugin** that packages Matt Pocock's
 triage → TDD -- plus a headless **Ralph** AFK (Away-From-Keyboard) loop, so you
 can drop the whole pipeline into any repo with one install.
 
-It bundles **13 skills**, two terminal runner scripts (`once.sh` / `afk.sh`),
+It bundles **14 skills**, two terminal runner scripts (`once.sh` / `afk.sh`),
 an in-session `/afk` command, and a per-repo `setup` skill that teaches the
 skills where your issues, triage labels, and domain docs live.
 
@@ -38,7 +38,8 @@ flowchart TD
     F -.-> H
     G ==> H["/triage<br/>label the board, move issues to ready-for-agent"]
 
-    H ==> I{{"NIGHT SHIFT - AFK implementation"}}
+    H ==> PR["/to-prs<br/>group ready issues into an ordered PR plan;<br/>each batch gates the board for one night-shift run"]
+    PR ==> I{{"NIGHT SHIFT - AFK implementation"}}
     I ==> J["scripts/afk.sh N (terminal loop)<br/>or /afk (one in-session pass) or scripts/once.sh (smoke test)"]
     J ==> K["each iteration: pick a ready-for-agent issue,<br/>/tdd, pre-commit gate, commit, update Status"]
     K -. hard bug .-> L["/diagnose"]
@@ -52,7 +53,7 @@ flowchart TD
 
     classDef req fill:#1f6feb,stroke:#0b3d91,color:#ffffff;
     classDef opt fill:#ffffff,stroke:#9aa0a6,stroke-dasharray:5 5,color:#202124;
-    class B,G,H,J,K,O req;
+    class B,G,H,PR,J,K,O req;
     class D,E,F,L,M opt;
 ```
 
@@ -66,6 +67,7 @@ flowchart TD
 | 4 | Create the backlog | `/to-issues` | **Required** \* | **Either** -- same session, or fresh from the saved PRD |
 | - | (alt) File bugs conversationally | `/qa` | Optional | **Fresh** -- starts a QA session |
 | 5 | Label the board | `/triage` (to `ready-for-agent`) | **Required** | **Fresh** -- reads the board; resumable |
+| - | Plan the PRs | `/to-prs` | **Recommended** | **Fresh** -- reads the board; re-runnable per batch |
 | 6 | Run the night shift | `docs/afk-workflow/scripts/afk.sh N` (or `/afk`, or `once.sh`) | **Required** | **Terminal** from repo root, fresh per iteration (or `/afk` in-session) |
 | - | ...during build: a hard bug | `/diagnose` | Optional | **Either** -- fresh on a bug, or mid-build |
 | - | ...during build: messy code | `/improve-codebase-architecture`, `/zoom-out`, `/caveman` | Optional | **Same session** -- acts on current work |
@@ -119,7 +121,7 @@ Or point at a local clone during development:
 /plugin install afk-workflow@afk-workflow
 ```
 
-**That single install is everything** -- all 13 skills (including the ones
+**That single install is everything** -- all 14 skills (including the ones
 derived from `mattpocock/skills`) are bundled inside this plugin, so they become
 available immediately. You do **not** install `mattpocock/skills`, the
 `ai-hero-cli`, or anything else separately.
@@ -187,6 +189,7 @@ To remove the workflow's footprint, delete `docs/afk-workflow/` and the
 | `to-prd` | Plan | Same session | Synthesizes the conversation into a Product Requirements Document |
 | `to-issues` | Plan | Either | Breaks a PRD into independently-grabbable **vertical-slice** issues with DAG dependencies |
 | `triage` | Plan | Fresh | State-machine triage; applies the canonical label vocabulary to the whole board |
+| `to-prs` | Plan | Fresh | Groups a triaged backlog into an ordered, dependency-safe sequence of PR-sized batches; writes `PR-PLAN.md`. Plans only -- never opens PRs |
 | `qa` | Plan | Fresh | Interactive QA session -- user reports bugs conversationally; files durable, tracker-agnostic issues |
 | `tdd` | Build | Auto (in loop) | Strict red-green-refactor loop (+ deep-modules / interface / mocking / refactoring refs) |
 | `diagnose` | Build | Either | Disciplined bug/perf diagnosis loop: reproduce → minimise → hypothesise → instrument → fix → regression-test |
@@ -315,6 +318,10 @@ So the "cleanup" is really review + integrate:
    per commit (one issue = one commit keeps this clean).
 3. **Resolve the flagged issues** yourself.
 4. **Integrate** -- open a PR, run your normal review, merge, tear down the worktree.
+   If the branch holds several issues and you're unsure how to carve them into
+   reviewable PRs, run `/to-prs` -- it groups the backlog into an ordered,
+   dependency-safe `PR-PLAN.md`. Best run *before* the night shift (so each batch
+   is board-gated to one PR-sized run), but it still advises the split after the fact.
 
 ### Spotted something to fix while reviewing?
 
@@ -348,7 +355,7 @@ afk-workflow/
 ├── .claude-plugin/
 │   ├── marketplace.json     # single-plugin marketplace manifest
 │   └── plugin.json          # plugin manifest
-├── skills/                  # 13 skills (verbatim Pocock + helpers)
+├── skills/                  # 14 skills (verbatim Pocock + helpers)
 ├── commands/
 │   └── afk.md               # /afk -- one in-session iteration
 ├── scripts/
