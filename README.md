@@ -11,7 +11,9 @@ skills where your issues, triage labels, and domain docs live.
 
 > Credit: the skills are derived from [`mattpocock/skills`](https://github.com/mattpocock/skills)
 > and the runner scripts from `mattpocock/ai-hero-cli`, both MIT. This repo
-> adapts them for cross-repo reuse with Windows-specific runner fixes.
+> adapts them for cross-repo reuse with Windows-specific runner fixes and
+> **vendors them into this plugin** -- there is nothing to install from those
+> upstream repos.
 
 ---
 
@@ -90,9 +92,13 @@ Or point at a local clone during development:
 /plugin install afk-workflow@afk-workflow
 ```
 
-The skills become available immediately. The `once.sh` / `afk.sh` scripts live
-under the installed plugin's `scripts/` dir (resolve it via the plugin path or
-copy them into your project).
+**That single install is everything** -- all 13 skills (including the ones
+derived from `mattpocock/skills`) are bundled inside this plugin, so they become
+available immediately. You do **not** install `mattpocock/skills`, the
+`ai-hero-cli`, or anything else separately.
+
+The `once.sh` / `afk.sh` scripts live under the installed plugin's `scripts/`
+dir (resolve it via the plugin path or copy them into your project).
 
 ## First-time setup (per repo)
 
