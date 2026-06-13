@@ -58,23 +58,52 @@ flowchart TD
 
 ### Commands, in order
 
-| # | Step | Command | Required? |
-|---|---|---|---|
-| 1 | Set up the repo (once) | `/setup-afk-skills` | **Required** |
-| 2 | Stress-test the plan | `/grill-me` or `/grill-with-docs` | Optional |
-| 3 | Write a PRD | `/to-prd` | Optional |
-| 4 | Create the backlog | `/to-issues` | **Required** \* |
-| - | (alt) File bugs conversationally | `/qa` | Optional |
-| 5 | Label the board | `/triage` (to `ready-for-agent`) | **Required** |
-| 6 | Run the night shift | `scripts/afk.sh N` (or `/afk`, or `scripts/once.sh`) | **Required** |
-| - | ...during build: a hard bug | `/diagnose` | Optional |
-| - | ...during build: messy code | `/improve-codebase-architecture`, `/zoom-out`, `/caveman` | Optional |
-| 7 | Re-enter the loop | you: QA, queue new issues, repeat | -- |
+| # | Step | Command | Required? | Run in |
+|---|---|---|---|---|
+| 1 | Set up the repo (once) | `/setup-afk-skills` | **Required** | **Fresh** -- once per repo |
+| 2 | Stress-test the plan | `/grill-me` or `/grill-with-docs` | Optional | **Fresh** -- starts the planning session |
+| 3 | Write a PRD | `/to-prd` | Optional | **Same session** -- synthesizes the grill |
+| 4 | Create the backlog | `/to-issues` | **Required** \* | **Either** -- same session, or fresh from the saved PRD |
+| - | (alt) File bugs conversationally | `/qa` | Optional | **Fresh** -- starts a QA session |
+| 5 | Label the board | `/triage` (to `ready-for-agent`) | **Required** | **Fresh** -- reads the board; resumable |
+| 6 | Run the night shift | `scripts/afk.sh N` (or `/afk`, or `scripts/once.sh`) | **Required** | **Terminal**, fresh per iteration (or `/afk` in-session) |
+| - | ...during build: a hard bug | `/diagnose` | Optional | **Either** -- fresh on a bug, or mid-build |
+| - | ...during build: messy code | `/improve-codebase-architecture`, `/zoom-out`, `/caveman` | Optional | **Same session** -- acts on current work |
+| 7 | Re-enter the loop | you: QA, queue new issues, repeat | -- | -- |
 
 \* You need *some* issues in `ready-for-agent` state before the loop does
 anything. Get them there with `/to-issues` (from a plan/PRD), `/qa` (from bug
 reports), or by hand-writing files under `docs/afk-workflow/backlog/<feature>/issues/`.
 Step 6's loop runs `/tdd` on each issue automatically -- you don't invoke it directly.
+
+### Fresh session vs. continue?
+
+The single rule: **start a fresh session** for anything that begins a new thread
+(`/grill-me`, `/grill-with-docs`, `/qa`) or reads only durable state -- files or
+the issue tracker (`/triage`, `/to-issues` from a saved `PRD.md`, the night-shift
+scripts, `/setup-afk-skills`). **Continue in the same session** only for skills
+that work off the live conversation you just had: `/to-prd` (synthesizes the
+grill) and `/zoom-out` (maps the code you're already looking at). `/to-issues`
+is the one that goes both ways -- same session if the plan lives only in the
+current chat, fresh if you already saved a PRD with `/to-prd` (the cleaner path).
+(`/caveman` is orthogonal -- an output-style toggle you can flip in any session.)
+The night shift is fresh-by-design: every `afk.sh` iteration spawns a brand-new
+`claude` whose only memory is the issue *files*.
+
+### Step 6 -- the literal commands
+
+Run these from your **project root** (so the issue glob and `git log` resolve --
+the script finds its own `prompt.md` regardless). The scripts live inside the
+installed plugin, so you invoke them by absolute path:
+
+```bash
+# GitHub install path shown; for a local-clone or other install, see "Runner scripts" below
+bash "$HOME/.claude/plugins/marketplaces/afk-workflow/scripts/once.sh"      # one iteration (smoke test)
+bash "$HOME/.claude/plugins/marketplaces/afk-workflow/scripts/afk.sh" 20    # the loop, up to 20 iterations
+```
+
+`/afk` is the in-session equivalent of a single iteration -- type it inside a
+Claude Code session, no path needed.
 
 ## Install
 
@@ -141,21 +170,21 @@ To remove the workflow's footprint, delete `docs/afk-workflow/` and the
 
 ## Skills
 
-| Skill | Stage | What it does |
-|---|---|---|
-| `grill-me` | Plan | Relentless one-question-at-a-time interview to reach shared understanding of a plan |
-| `grill-with-docs` | Plan | Same, but for an existing codebase -- writes `CONTEXT.md` + ADRs as decisions land |
-| `to-prd` | Plan | Synthesizes the conversation into a Product Requirements Document |
-| `to-issues` | Plan | Breaks a PRD into independently-grabbable **vertical-slice** issues with DAG dependencies |
-| `triage` | Plan | State-machine triage; applies the canonical label vocabulary to the whole board |
-| `qa` | Plan | Interactive QA session -- user reports bugs conversationally; files durable, tracker-agnostic issues |
-| `tdd` | Build | Strict red-green-refactor loop (+ deep-modules / interface / mocking / refactoring refs) |
-| `diagnose` | Build | Disciplined bug/perf diagnosis loop: reproduce → minimise → hypothesise → instrument → fix → regression-test |
-| `improve-codebase-architecture` | Build | Ousterhout "deep module" refactoring, interface design, domain language |
-| `zoom-out` | Build | Step back from the weeds to re-evaluate approach |
-| `caveman` | Build | Dumb-it-down / simplify pass |
-| `write-a-skill` | Meta | Author a new skill |
-| `setup-afk-skills` | Setup | Scaffold the per-repo `docs/afk-workflow/config/*` config the other skills read |
+| Skill | Stage | Run in | What it does |
+|---|---|---|---|
+| `grill-me` | Plan | Fresh | Relentless one-question-at-a-time interview to reach shared understanding of a plan |
+| `grill-with-docs` | Plan | Fresh | Same, but for an existing codebase -- writes `CONTEXT.md` + ADRs as decisions land |
+| `to-prd` | Plan | Same session | Synthesizes the conversation into a Product Requirements Document |
+| `to-issues` | Plan | Either | Breaks a PRD into independently-grabbable **vertical-slice** issues with DAG dependencies |
+| `triage` | Plan | Fresh | State-machine triage; applies the canonical label vocabulary to the whole board |
+| `qa` | Plan | Fresh | Interactive QA session -- user reports bugs conversationally; files durable, tracker-agnostic issues |
+| `tdd` | Build | Auto (in loop) | Strict red-green-refactor loop (+ deep-modules / interface / mocking / refactoring refs) |
+| `diagnose` | Build | Either | Disciplined bug/perf diagnosis loop: reproduce → minimise → hypothesise → instrument → fix → regression-test |
+| `improve-codebase-architecture` | Build | Fresh or same | Ousterhout "deep module" refactoring, interface design, domain language |
+| `zoom-out` | Build | Same session | Map an unfamiliar area of code one layer up (relevant modules + callers) |
+| `caveman` | Build | Any (mode) | Ultra-terse output mode -- ~75% fewer tokens; stays on until you say "normal mode" |
+| `write-a-skill` | Meta | Fresh | Author a new skill |
+| `setup-afk-skills` | Setup | Fresh (once) | Scaffold the per-repo `docs/afk-workflow/config/*` config the other skills read |
 
 ## Runner scripts (the night shift) -- CLI usage
 
