@@ -25,7 +25,7 @@ dashed branches are **optional** helpers you reach for when you need them.
 
 ```mermaid
 flowchart TD
-    A([New repo]) ==> B["/setup-matt-pocock-skills<br/>scaffold docs/afk-workflow/ config + CLAUDE.md block"]
+    A([New repo]) ==> B["/setup-afk-skills<br/>scaffold docs/afk-workflow/ config + CLAUDE.md block"]
 
     B ==> C{{"DAY SHIFT - plan with a human"}}
 
@@ -60,7 +60,7 @@ flowchart TD
 
 | # | Step | Command | Required? |
 |---|---|---|---|
-| 1 | Set up the repo (once) | `/setup-matt-pocock-skills` | **Required** |
+| 1 | Set up the repo (once) | `/setup-afk-skills` | **Required** |
 | 2 | Stress-test the plan | `/grill-me` or `/grill-with-docs` | Optional |
 | 3 | Write a PRD | `/to-prd` | Optional |
 | 4 | Create the backlog | `/to-issues` | **Required** \* |
@@ -109,7 +109,7 @@ in the consuming repo to learn your issue tracker, triage labels, and domain
 doc layout. Run the setup skill once per repo before first use:
 
 ```
-/setup-matt-pocock-skills
+/setup-afk-skills
 ```
 
 It walks you through three choices (issue tracker: GitHub / GitLab / local
@@ -155,7 +155,7 @@ To remove the workflow's footprint, delete `docs/afk-workflow/` and the
 | `zoom-out` | Build | Step back from the weeds to re-evaluate approach |
 | `caveman` | Build | Dumb-it-down / simplify pass |
 | `write-a-skill` | Meta | Author a new skill |
-| `setup-matt-pocock-skills` | Setup | Scaffold the per-repo `docs/afk-workflow/config/*` config the other skills read |
+| `setup-afk-skills` | Setup | Scaffold the per-repo `docs/afk-workflow/config/*` config the other skills read |
 
 ## Runner scripts (the night shift) -- CLI usage
 
@@ -171,7 +171,7 @@ of WSL automatically (WSL's keyring breaks `gh` push auth).
 
 In both, `issues_glob` is optional and defaults to
 `docs/afk-workflow/backlog/*/issues/*.md` (the local-markdown convention from
-`/setup-matt-pocock-skills`). For a GitHub/GitLab tracker, edit the `issues=`
+`/setup-afk-skills`). For a GitHub/GitLab tracker, edit the `issues=`
 line in the script to use `gh issue list` / `glab issue list`.
 
 ### 1. Locate the scripts

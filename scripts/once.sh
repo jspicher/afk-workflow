@@ -16,7 +16,7 @@
 #
 # Usage: /path/to/once.sh [issues_glob]
 #   issues_glob  optional; defaults to "docs/afk-workflow/backlog/*/issues/*.md"
-#                (the local-markdown convention from setup-matt-pocock-skills).
+#                (the local-markdown convention from setup-afk-skills).
 #                For GitHub/GitLab trackers, swap the `issues=` line below for
 #                `gh issue list ...` / `glab issue list ...`.
 

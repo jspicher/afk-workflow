@@ -7,7 +7,7 @@ description: Interactive QA session where the user reports bugs or issues conver
 
 Run an interactive QA session. The user describes problems they're encountering. You clarify, explore the codebase for context, and file issues that are durable, user-focused, and use the project's domain language.
 
-The issue tracker and triage label vocabulary should have been provided to you — run `/setup-matt-pocock-skills` if not.
+The issue tracker and triage label vocabulary should have been provided to you — run `/setup-afk-skills` if not.
 
 ## For each issue the user raises
 
