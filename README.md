@@ -233,11 +233,13 @@ bash docs/afk-workflow/scripts/once.sh "docs/afk-workflow/backlog/checkout-redes
 ```
 
 It concatenates your open issues + the last 5 commits + `prompt.md`, pipes them
-into `claude --dangerously-skip-permissions`, and the agent picks one
-`ready-for-agent` issue, implements it with `/tdd`, runs your pre-commit gate,
-commits, and updates that issue's `Status:`. Then it exits. No `jq` required --
-this is the lightest way to confirm the plumbing works before you let the loop
-run unattended.
+into a headless `claude` run (`--print --output-format stream-json`), and the
+agent picks one `ready-for-agent` issue, implements it with `/tdd`, runs your
+pre-commit gate, commits, and updates that issue's `Status:`. Then it exits.
+Output streams live (needs `jq`, which Git Bash ships) so you can watch the
+single iteration before trusting the loop unattended. (The `--print` flag is
+load-bearing -- without it, bare `claude` on a piped prompt tries to open the
+interactive TUI, which can't render over a pipe and just hangs.)
 
 ### `afk.sh` -- the loop
 

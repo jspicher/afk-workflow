@@ -19,6 +19,8 @@
 #                (the local-markdown convention from setup-afk-skills).
 #                For GitHub/GitLab trackers, swap the `issues=` line below for
 #                `gh issue list ...` / `glab issue list ...`.
+#
+# Requires: jq (Git Bash ships it) -- renders claude's stream-json output.
 
 set -uo pipefail
 
@@ -50,7 +52,20 @@ issues=$(cat $ISSUES_GLOB 2>/dev/null || echo "No issues found")
 commits=$(git log -n 5 --format="%H%n%ad%n%B---" --date=short 2>/dev/null || echo "No commits found")
 prompt=$(cat "$SCRIPT_DIR/prompt.md")
 
-claude --dangerously-skip-permissions \
+# jq filter: pull the assistant's text out of the stream-json events.
+stream_text='select(.type == "assistant").message.content[]? | select(.type == "text").text // empty | gsub("\n"; "\r\n") | . + "\r\n\n"'
+
+# --print + --output-format stream-json run claude HEADLESS (one turn, then
+# exit) and stream its output. WITHOUT --print, bare `claude` tries to launch
+# the interactive TUI, which can't render over a piped stdin -- it hangs with a
+# blank screen and never commits. --verbose surfaces tool activity in the stream.
+claude \
+  --dangerously-skip-permissions \
+  --verbose \
+  --print \
+  --output-format stream-json \
   <<< "Previous commits: $commits
 $issues
-$prompt"
+$prompt" \
+| grep --line-buffered '^{' \
+| jq --unbuffered -rj "$stream_text"
