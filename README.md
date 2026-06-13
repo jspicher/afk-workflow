@@ -66,7 +66,7 @@ flowchart TD
 | 4 | Create the backlog | `/to-issues` | **Required** \* | **Either** -- same session, or fresh from the saved PRD |
 | - | (alt) File bugs conversationally | `/qa` | Optional | **Fresh** -- starts a QA session |
 | 5 | Label the board | `/triage` (to `ready-for-agent`) | **Required** | **Fresh** -- reads the board; resumable |
-| 6 | Run the night shift | `scripts/afk.sh N` (or `/afk`, or `scripts/once.sh`) | **Required** | **Terminal**, fresh per iteration (or `/afk` in-session) |
+| 6 | Run the night shift | `docs/afk-workflow/scripts/afk.sh N` (or `/afk`, or `once.sh`) | **Required** | **Terminal** from repo root, fresh per iteration (or `/afk` in-session) |
 | - | ...during build: a hard bug | `/diagnose` | Optional | **Either** -- fresh on a bug, or mid-build |
 | - | ...during build: messy code | `/improve-codebase-architecture`, `/zoom-out`, `/caveman` | Optional | **Same session** -- acts on current work |
 | 7 | Re-enter the loop | you: QA, queue new issues, repeat | -- | -- |
@@ -92,14 +92,12 @@ The night shift is fresh-by-design: every `afk.sh` iteration spawns a brand-new
 
 ### Step 6 -- the literal commands
 
-Run these from your **project root** (so the issue glob and `git log` resolve --
-the script finds its own `prompt.md` regardless). The scripts live inside the
-installed plugin, so you invoke them by absolute path:
+`/setup-afk-skills` copies the runners into `docs/afk-workflow/scripts/`, so from
+your **project root** (where the issue glob and `git log` resolve) it's just:
 
 ```bash
-# GitHub install path shown; for a local-clone or other install, see "Runner scripts" below
-bash "$HOME/.claude/plugins/marketplaces/afk-workflow/scripts/once.sh"      # one iteration (smoke test)
-bash "$HOME/.claude/plugins/marketplaces/afk-workflow/scripts/afk.sh" 20    # the loop, up to 20 iterations
+bash docs/afk-workflow/scripts/once.sh        # one iteration (smoke test)
+bash docs/afk-workflow/scripts/afk.sh 20      # the loop, up to 20 iterations
 ```
 
 `/afk` is the in-session equivalent of a single iteration -- type it inside a
@@ -126,10 +124,11 @@ derived from `mattpocock/skills`) are bundled inside this plugin, so they become
 available immediately. You do **not** install `mattpocock/skills`, the
 `ai-hero-cli`, or anything else separately.
 
-The `once.sh` / `afk.sh` night-shift scripts live under the installed plugin's
-`scripts/` dir and are run from a terminal, not as slash commands -- see
+The `once.sh` / `afk.sh` night-shift scripts are copied into your repo at
+`docs/afk-workflow/scripts/` by `/setup-afk-skills`, then run from a terminal
+(not as slash commands) -- see
 [Runner scripts (the night shift)](#runner-scripts-the-night-shift----cli-usage)
-for how to locate and run them.
+for how to run them.
 
 ## First-time setup (per repo)
 
@@ -143,8 +142,10 @@ doc layout. Run the setup skill once per repo before first use:
 
 It walks you through three choices (issue tracker: GitHub / GitLab / local
 markdown / other · triage label vocabulary · single- vs multi-context domain
-docs) and scaffolds an `## Agent skills` block in `CLAUDE.md`/`AGENTS.md` plus
-`docs/afk-workflow/config/{issue-tracker,triage-labels,domain}.md`.
+docs), scaffolds an `## Agent skills` block in `CLAUDE.md`/`AGENTS.md` plus
+`docs/afk-workflow/config/{issue-tracker,triage-labels,domain}.md`, and copies
+the night-shift runner scripts into `docs/afk-workflow/scripts/` so you can launch
+the loop from your project root.
 
 ## What it writes in a consuming repo
 
@@ -155,6 +156,7 @@ Everything the workflow creates or reads lives under a single, removable
 ```
 docs/afk-workflow/
 ├── config/         # issue-tracker.md, triage-labels.md, domain.md  (from setup)
+├── scripts/        # once.sh, afk.sh, prompt.md     (night-shift runners, from setup)
 ├── backlog/        # <feature>/PRD.md + <feature>/issues/NN-*.md     (to-prd, to-issues)
 ├── context/        # CONTEXT.md / CONTEXT-MAP.md   (domain glossary, grill-with-docs)
 ├── adr/            # 0001-*.md ...                 (architecture decision records)
@@ -203,48 +205,23 @@ In both, `issues_glob` is optional and defaults to
 `/setup-afk-skills`). For a GitHub/GitLab tracker, edit the `issues=`
 line in the script to use `gh issue list` / `glab issue list`.
 
-### 1. Locate the scripts
+### Where they live
 
-The scripts are **not** on your `PATH`, and `${CLAUDE_PLUGIN_ROOT}` is only set
-*inside* a Claude Code session -- from a plain terminal you invoke them by
-absolute path. Three ways to get that path, easiest first:
+`/setup-afk-skills` copies `once.sh`, `afk.sh`, and `prompt.md` into your repo at
+`docs/afk-workflow/scripts/`, so every example below uses that short,
+root-relative path. (Haven't run setup, or want to run straight from the plugin?
+Copy those three files out of the installed plugin -- typically
+`~/.claude/plugins/marketplaces/afk-workflow/scripts/`, or run
+`find ~/.claude/plugins -path '*afk-workflow*/scripts/afk.sh'` to locate them.)
 
-**a. You installed from a local clone** -- just point at the clone's `scripts/`:
-
-```bash
-AFK="C:/wamp64/www/.claudebot/.projects/afk-workflow/scripts"   # your clone path
-```
-
-**b. You installed from GitHub** -- Claude Code clones the marketplace repo
-under `~/.claude/plugins/marketplaces/`. The scripts typically land at
-`~/.claude/plugins/marketplaces/afk-workflow/scripts/`; if that exact path isn't
-there, locate it:
-
-```bash
-find "$HOME/.claude/plugins/marketplaces" -path '*afk-workflow*/scripts/afk.sh' 2>/dev/null
-AFK="$HOME/.claude/plugins/marketplaces/afk-workflow/scripts"   # adjust to match
-ls "$AFK"        # once.sh  afk.sh  prompt.md
-```
-
-**c. Copy them into your project** (most ergonomic for repeated runs) -- vendor
-the three files and call them with a short relative path:
-
-```bash
-mkdir -p scripts/afk
-cp "$AFK"/{once.sh,afk.sh,prompt.md} scripts/afk/
-bash scripts/afk/afk.sh 20
-```
-
-The examples below use `$AFK` for the resolved `scripts/` dir.
-
-### 2. `once.sh` -- a single iteration (smoke test)
+### `once.sh` -- a single iteration (smoke test)
 
 ```bash
 # default: every issue under docs/afk-workflow/backlog/*/issues/*.md
-bash "$AFK/once.sh"
+bash docs/afk-workflow/scripts/once.sh
 
 # scope to one feature's backlog:
-bash "$AFK/once.sh" "docs/afk-workflow/backlog/checkout-redesign/issues/*.md"
+bash docs/afk-workflow/scripts/once.sh "docs/afk-workflow/backlog/checkout-redesign/issues/*.md"
 ```
 
 It concatenates your open issues + the last 5 commits + `prompt.md`, pipes them
@@ -254,20 +231,20 @@ commits, and updates that issue's `Status:`. Then it exits. No `jq` required --
 this is the lightest way to confirm the plumbing works before you let the loop
 run unattended.
 
-### 3. `afk.sh` -- the loop
+### `afk.sh` -- the loop
 
 `max_iterations` is **required** -- a hard cap so a runaway agent can't loop
 forever. The optional second arg is the issues glob (same default as `once.sh`).
 
 ```bash
 # up to 20 iterations over the default backlog glob
-bash "$AFK/afk.sh" 20
+bash docs/afk-workflow/scripts/afk.sh 20
 
 # 50 iterations, scoped to one feature
-bash "$AFK/afk.sh" 50 "docs/afk-workflow/backlog/checkout-redesign/issues/*.md"
+bash docs/afk-workflow/scripts/afk.sh 50 "docs/afk-workflow/backlog/checkout-redesign/issues/*.md"
 
 # a single pass, but with the loop's stream-json output + sentinel check
-bash "$AFK/afk.sh" 1
+bash docs/afk-workflow/scripts/afk.sh 1
 ```
 
 Each iteration runs the same pick → `/tdd` → gate → commit → update-`Status:`
@@ -283,20 +260,18 @@ ships both).
 > Pocock's original sandboxes each agent in Docker (his "Sand Castle" lib); this
 > lighter setup trades that for branch isolation.
 
-### 4. End-to-end CLI example
+### End-to-end CLI example
 
 ```bash
 # from your project root, on a throwaway branch
 git switch -c afk/checkout-redesign
-
-AFK="$HOME/.claude/plugins/marketplaces/afk-workflow/scripts"
 GLOB="docs/afk-workflow/backlog/checkout-redesign/issues/*.md"
 
 # 1. smoke-test a single issue
-bash "$AFK/once.sh" "$GLOB"
+bash docs/afk-workflow/scripts/once.sh "$GLOB"
 
 # 2. happy with it? let it run the backlog down, up to 30 passes
-bash "$AFK/afk.sh" 30 "$GLOB"
+bash docs/afk-workflow/scripts/afk.sh 30 "$GLOB"
 
 # 3. review the commits the agent made
 git log --oneline master..HEAD

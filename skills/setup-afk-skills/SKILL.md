@@ -1,6 +1,6 @@
 ---
 name: setup-afk-skills
-description: Sets up an `## Agent skills` block in AGENTS.md/CLAUDE.md and `docs/afk-workflow/config/` so the engineering skills know this repo's issue tracker (GitHub or local markdown), triage label vocabulary, and domain doc layout. Run before first use of `to-issues`, `to-prd`, `triage`, `diagnose`, `tdd`, `improve-codebase-architecture`, or `zoom-out` — or if those skills appear to be missing context about the issue tracker, triage labels, or domain docs.
+description: Sets up an `## Agent skills` block in AGENTS.md/CLAUDE.md and `docs/afk-workflow/config/` so the engineering skills know this repo's issue tracker (GitHub or local markdown), triage label vocabulary, and domain doc layout, and copies the night-shift runner scripts into `docs/afk-workflow/scripts/`. Run before first use of `to-issues`, `to-prd`, `triage`, `diagnose`, `tdd`, `improve-codebase-architecture`, or `zoom-out` — or if those skills appear to be missing context about the issue tracker, triage labels, or domain docs.
 disable-model-invocation: true
 ---
 
@@ -116,6 +116,36 @@ Then write the three docs files using the seed templates in this skill folder as
 
 For "other" issue trackers, write `docs/afk-workflow/config/issue-tracker.md` from scratch using the user's description.
 
-### 5. Done
+### 5. Install the runner scripts
 
-Tell the user the setup is complete and which engineering skills will now read from these files. Mention they can edit `docs/afk-workflow/config/*.md` directly later — re-running this skill is only necessary if they want to switch issue trackers or restart from scratch.
+Copy the night-shift runners out of this plugin into the repo so the loop can be
+launched from the project root with a short, root-relative path
+(`bash docs/afk-workflow/scripts/afk.sh N`) -- no absolute plugin path, no global
+shortcut -- and so they sit alongside the repo's other workflow files (subject to
+the repo's `.gitignore`; see the note below).
+
+Resolve the plugin's `scripts/` directory, trying these in order:
+
+1. `$CLAUDE_PLUGIN_ROOT/scripts` if `$CLAUDE_PLUGIN_ROOT` is set.
+2. `~/.claude/plugins/marketplaces/afk-workflow/scripts` (the default install location).
+3. As a last resort: `find ~/.claude/plugins -path '*afk-workflow*/scripts/afk.sh'` and use the directory it reports.
+
+Then copy the three runners into `docs/afk-workflow/scripts/`, creating the
+directory if needed, **always overwriting** so re-running this skill refreshes
+them to the installed plugin version:
+
+```bash
+SRC="<resolved scripts dir>"
+mkdir -p docs/afk-workflow/scripts
+cp "$SRC/once.sh" "$SRC/afk.sh" "$SRC/prompt.md" docs/afk-workflow/scripts/
+```
+
+Then tell the user:
+
+- These files belong to the repo's single removable `docs/afk-workflow/` footprint. They're meant to be **committed** so they travel with the branch -- but **check the repo's `.gitignore` first**: if it excludes `docs/` or `docs/afk-workflow/` (some repos ignore all of `docs/`), the runners (and your issue files) stay **local-only**. That's fine for running the loop on this machine; if you want them tracked and shared, `git add -f docs/afk-workflow/scripts/*` or add a `!docs/afk-workflow/` negation rule.
+- Launch from the project root: `bash docs/afk-workflow/scripts/afk.sh 10` (the loop) or `bash docs/afk-workflow/scripts/once.sh` (a single smoke-test iteration).
+- If the issue tracker is **GitHub or GitLab** (not local markdown), open the copied `afk.sh` + `once.sh` and swap the `issues=$(cat ...)` line for `gh issue list ...` / `glab issue list ...`, as the script comments describe. For local markdown, no edits are needed.
+
+### 6. Done
+
+Tell the user the setup is complete and which engineering skills will now read from these files. Mention they can edit `docs/afk-workflow/config/*.md` directly later, and re-run this skill to refresh the runner scripts or switch issue trackers.
