@@ -291,6 +291,47 @@ git log --oneline master..HEAD
 to watch the agent work one task interactively, use the bundled `/afk` command
 instead of these terminal scripts.
 
+## After the loop
+
+There's **no scripted cleanup phase.** `afk.sh` stops when the agent emits
+`<promise>NO MORE TASKS</promise>` (zero issues left in `ready-for-agent`) or
+when it hits `max_iterations`. You're left with **one commit per completed
+issue** on your branch, and each issue file's `Status:` line plus a dated
+`## Progress` note rewritten in place.
+
+Not every issue comes back `done`. Per `prompt.md`, the agent may also set:
+
+- `ready-for-human` -- agent-doable work is finished, but a human takes it from
+  here (design/UX/copy review, a judgment call between two valid approaches,
+  manual QA, or an architectural decision it wouldn't make alone).
+- `needs-info` -- blocked on an ambiguous spec or a question only you can answer.
+
+So the "cleanup" is really review + integrate:
+
+1. **Find what the agent flagged** -- `grep -rn "^Status:" docs/afk-workflow/backlog/`.
+   Anything `ready-for-human` / `needs-info` is the agent handing it back; read
+   its `## Progress` note.
+2. **Review the commits** -- `git log --oneline master..HEAD`, then `git show`
+   per commit (one issue = one commit keeps this clean).
+3. **Resolve the flagged issues** yourself.
+4. **Integrate** -- open a PR, run your normal review, merge, tear down the worktree.
+
+### Spotted something to fix while reviewing?
+
+The loop only ever grabs the **next** `ready-for-agent` issue by priority -- you
+**cannot** point `once.sh`/`afk.sh` at a specific issue. Route the fix by type:
+
+- **Small, and you're already here** -- just fix it; reach for `/tdd` if it
+  deserves a regression test. No command needed.
+- **You want the night shift to do it** -- get a `ready-for-agent` issue back
+  onto disk, then re-run `afk.sh`:
+  - *re-open* the issue file -- flip its `Status:` back to `ready-for-agent` and
+    append a `## Progress` note describing the defect (lowest friction), **or**
+  - `/qa` to file it as a fresh issue, then `/triage` it to `ready-for-agent`
+    (use this when it's genuinely a new slice, not "issue 1 wasn't done").
+- **Hard or mysterious bug** -- `/diagnose` (reproduce → minimise → hypothesise
+  → instrument → fix → regression-test).
+
 ## Prerequisites
 
 - **Claude Code CLI** on `PATH` (`claude`)
