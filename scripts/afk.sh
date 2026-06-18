@@ -36,6 +36,15 @@ fi
 # Non-interactive bash doesn't source ~/.bashrc; ensure claude is on PATH.
 export PATH="$HOME/.local/bin:$PATH"
 
+# Disable the Honcho memory plugin for this headless loop. Each iteration is a
+# full `claude -p` session whose Honcho SessionEnd hook attempts a blocking bulk
+# flush to api.honcho.dev; the parent process tears down first, so Claude Code
+# kills the hook ("SessionEnd hook ... failed: Hook cancelled") before it can
+# mark the queue uploaded. In a loop the queue never clears, so the same backlog
+# is re-sent every iteration and trips Honcho's 600/min rate limit. Your
+# interactive sessions' live capture is unaffected. Remove to re-enable.
+export HONCHO_ENABLED=false
+
 set -e
 
 if [ -z "${1:-}" ]; then

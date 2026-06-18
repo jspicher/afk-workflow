@@ -46,6 +46,14 @@ fi
 # so the claude binary at ~/.local/bin may not be on PATH. Add it explicitly.
 export PATH="$HOME/.local/bin:$PATH"
 
+# Disable the Honcho memory plugin for this headless run. The Honcho SessionEnd
+# hook attempts a blocking bulk flush to api.honcho.dev as `claude -p` exits; the
+# parent tears down first, so the hook is killed ("SessionEnd hook ... failed:
+# Hook cancelled") before it can mark the queue uploaded, leaving stale messages
+# to be re-sent (and rate-limited) on the next run. Interactive capture is
+# unaffected. Remove to re-enable.
+export HONCHO_ENABLED=false
+
 ISSUES_GLOB="${1:-docs/afk-workflow/backlog/*/issues/*.md}"
 
 issues=$(cat $ISSUES_GLOB 2>/dev/null || echo "No issues found")
