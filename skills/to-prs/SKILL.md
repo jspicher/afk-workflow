@@ -3,11 +3,23 @@ name: to-prs
 description: Group a triaged backlog of ready issues into an ordered sequence of PR-sized batches and write a PR-PLAN.md. Use when the user wants to plan PRs, decide how to split work into pull requests, batch the backlog for release, group issues into PRs, or avoid one giant unreviewable PR. It PLANS only -- it never opens PRs or touches git.
 ---
 
+## Project configuration and skill loading
+
+Resolve <workflow-root> from the repository's AFK_WORKFLOW_ROOT pointer and read
+config/workflow.json plus relevant config notes under that root. If absent, tell
+the user to run setup-afk-skills. Never create a fallback docs tree.
+When a step uses another skill, Claude calls Skill with afk-workflow:<name>;
+Codex reads this project's .agents/skills/<name>/SKILL.md and follows it.
+Use the project installation, not an unrelated global skill. Explicit-only skills
+require user invocation; controller prompts explicitly select the AFK workflow.
+Headless runs reuse durable approvals and report missing input instead of asking.
+
+
 # To PRs
 
 Partition a triaged backlog into an **ordered sequence of PR-sized batches**, then write a `PR-PLAN.md` that doubles as the night-shift batch schedule -- one artifact drives both how you'll ship and how you'll build.
 
-> **This skill PLANS, it does not act.** It never runs `gh pr create`, branches, rebases, commits, or touches git in any way. The name mirrors `/to-prd` and `/to-issues`, but the output is a *plan*, not the PRs themselves. Lead with that so nobody expects PRs to appear.
+> **This skill PLANS, it does not act.** It never runs `gh pr create`, branches, rebases, commits, or touches git in any way. The name mirrors `/to-spec` and `/to-tickets`, but the output is a *plan*, not the PRs themselves. Lead with that so nobody expects PRs to appear.
 
 The issue tracker and triage label vocabulary should have been provided to you -- run `/setup-afk-skills` if not.
 
@@ -25,7 +37,7 @@ The night shift (`afk.sh`) emits **one atomic commit per issue onto one branch**
 Between `/triage` and the night shift:
 
 ```
-... -> /to-issues -> /triage -> /to-prs -> night shift (one PR per batch) -> review/merge -> re-run /to-prs for the next batch
+... -> /to-tickets -> /triage -> /to-prs -> night shift (one PR per batch) -> review/merge -> re-run /to-prs for the next batch
 ```
 
 **Re-runnable.** As batches merge, re-running re-partitions the remainder, so the plan stays accurate across a multi-batch project. Run in a **fresh session** -- it reads only durable state (the issue files / tracker).
@@ -36,7 +48,7 @@ Between `/triage` and the night shift:
 
 Read every **un-shipped** issue, per the configured issue tracker:
 
-- **Local markdown** -- read `docs/afk-workflow/backlog/<feature>/issues/*.md`.
+- **Local markdown** -- read `<workflow-root>/backlog/<feature>/issues/*.md`.
 - **GitHub / GitLab** -- list open issues (`gh issue list` / `glab issue list`) and read each body + comments.
 
 Drop anything already `done` / `wontfix` / merged -- only plan un-shipped work. For each remaining issue, extract:
@@ -107,9 +119,9 @@ Iterate until approved. Human corrections live in the plan artifact, not back-wr
 
 ### 7. Write `PR-PLAN.md` (and print the gating commands)
 
-Once approved, write `docs/afk-workflow/backlog/<feature>/PR-PLAN.md` (template below) **and** print each batch's board-gating commands inline to the session, so the user can act immediately and also has them on disk for later batches.
+Once approved, write `<workflow-root>/backlog/<feature>/PR-PLAN.md` (template below) **and** print each batch's board-gating commands inline to the session, so the user can act immediately and also has them on disk for later batches.
 
-Use the issue tracker's **configured label strings** (from `docs/afk-workflow/config/triage-labels.md`), not the literal canonical names, and emit gating commands matching the configured tracker:
+Use the issue tracker's **configured label strings** (from `<workflow-root>/config/triage-labels.md`), not the literal canonical names, and emit gating commands matching the configured tracker:
 
 - **Local markdown** -- flip the `Status:` line in the held / batch issue files (`sed`).
 - **GitHub / GitLab** -- relabel: `--remove-label ready-for-agent --add-label needs-triage` on held issues; the inverse on the batch.
@@ -132,10 +144,10 @@ Rationale: <which rules drove this grouping>
 Build this batch (board-gating -- local-markdown tracker shown):
   cd <repo root>
   # hold everything outside this batch
-  for n in 05 06 07 08; do sed -i 's/^Status: ready-for-agent/Status: needs-triage/' docs/afk-workflow/backlog/<feature>/issues/$n-*.md; done
+  for n in 05 06 07 08; do sed -i 's/^Status: ready-for-agent/Status: needs-triage/' <workflow-root>/backlog/<feature>/issues/$n-*.md; done
   # ensure this batch is ready (already-done issues are auto-skipped by the loop)
-  for n in 02 03 04; do sed -i 's/^Status: needs-triage/Status: ready-for-agent/' docs/afk-workflow/backlog/<feature>/issues/$n-*.md; done
-  bash docs/afk-workflow/scripts/afk.sh 5
+  for n in 02 03 04; do sed -i 's/^Status: needs-triage/Status: ready-for-agent/' <workflow-root>/backlog/<feature>/issues/$n-*.md; done
+  bash <workflow-root>/scripts/afk.sh 5
 
 PR description skeleton:
   ## Summary
@@ -168,4 +180,4 @@ Note how C2 **refines intuition**: a gut call might lump 07 + 08 into one "dange
 - **No git, no GitHub/GitLab writes for PRs.** It never creates branches, commits, or pull requests. It edits issue *labels / Status* only as the printed gating commands the user chooses to run -- it does not run them for the user.
 - **Size is a guess.** Pre-implementation LOC is unknowable; size only ever breaks a tie (step 4).
 - **Risk is inferred, not authoritative.** The quiz (step 6) is where the human locks the tiers.
-- **It does not modify `to-issues` / `triage` output.** It reads the backlog; it does not re-triage or rewrite issues.
+- **It does not modify `to-tickets` / `triage` output.** It reads the backlog; it does not re-triage or rewrite issues.

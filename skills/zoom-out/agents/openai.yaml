@@ -1,0 +1,5 @@
+interface:
+  display_name: "Zoom Out"
+  short_description: "AFK Workflow: zoom out workflow"
+policy:
+  allow_implicit_invocation: false

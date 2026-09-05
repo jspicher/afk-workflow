@@ -1,0 +1,5 @@
+interface:
+  display_name: "Triage"
+  short_description: "AFK Workflow: triage workflow"
+policy:
+  allow_implicit_invocation: false

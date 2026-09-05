@@ -1,3 +1,5 @@
+> Historical design record. Current commands, configuration and execution behavior are documented in [README](../README.md) and [v0.6.0 decisions](v0.6.0-upgrade.md).
+
 # `/to-prs` -- PR release-grouping skill (DESIGN SPEC, DRAFT for review)
 
 Status: **BUILT 2026-06-13** -- skill authored at `skills/to-prs/SKILL.md`; plugin bumped 0.4.1 -> 0.5.0 (14 skills). This spec is retained as the design record.

@@ -9,8 +9,8 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 | `ready-for-agent`          | `ready-for-agent`    | Fully specified, ready for an AFK agent  |
 | `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
 | `wontfix`                  | `wontfix`            | Will not be actioned                     |
-| --                         | `done`               | Implementation complete (PR merged or work shipped) |
+| --                         | `done`               | Checks and independent review passed; implementation committed |
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 
-Edit the right-hand column to match whatever vocabulary you actually use.
+This file describes canonical roles. The selected workflow root contains config/workflow.json; tracker.labels there controls runtime GitHub labels. Keep config/triage-labels.md consistent with that JSON. Local statuses use the canonical strings.

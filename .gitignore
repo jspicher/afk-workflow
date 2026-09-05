@@ -5,7 +5,7 @@
 *.swp
 *~
 
-# Local issue/PRD backlog (the local-markdown tracker convention now lives at
+# Local ticket/spec backlog (the local-markdown tracker convention now lives at
 # docs/afk-workflow/backlog/). Ignored here so the plugin repo never carries a
 # consumer project's backlog if the workflow is ever run inside it; in a
 # CONSUMING project you may want to track it -- that's your call.

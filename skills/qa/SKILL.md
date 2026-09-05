@@ -3,11 +3,23 @@ name: qa
 description: Interactive QA session where the user reports bugs or issues conversationally, and the agent files them on the project issue tracker. Explores the codebase in the background for context and domain language. Use when the user wants to report bugs, do QA, file issues conversationally, or mentions "QA session".
 ---
 
+## Project configuration and skill loading
+
+Resolve <workflow-root> from the repository's AFK_WORKFLOW_ROOT pointer and read
+config/workflow.json plus relevant config notes under that root. If absent, tell
+the user to run setup-afk-skills. Never create a fallback docs tree.
+When a step uses another skill, Claude calls Skill with afk-workflow:<name>;
+Codex reads this project's .agents/skills/<name>/SKILL.md and follows it.
+Use the project installation, not an unrelated global skill. Explicit-only skills
+require user invocation; controller prompts explicitly select the AFK workflow.
+Headless runs reuse durable approvals and report missing input instead of asking.
+
+
 # QA Session
 
 Run an interactive QA session. The user describes problems they're encountering. You clarify, explore the codebase for context, and file issues that are durable, user-focused, and use the project's domain language.
 
-The issue tracker and triage label vocabulary should have been provided to you — run `/setup-afk-skills` if not.
+The issue tracker and triage label vocabulary should have been provided to you; run `/setup-afk-skills` if not.
 
 ## For each issue the user raises
 
@@ -23,13 +35,13 @@ Do NOT over-interview. If the description is clear enough to file, move on.
 
 ### 2. Explore the codebase in the background
 
-While talking to the user, kick off an Agent (subagent_type=Explore) in the background to understand the relevant area. The goal is NOT to find a fix — it's to:
+While talking to the user, kick off an Agent (subagent_type=Explore) in the background to understand the relevant area. The goal is NOT to find a fix; it's to:
 
-- Learn the domain language used in that area (check `docs/afk-workflow/context/CONTEXT.md`)
+- Learn the domain language used in that area (check `<workflow-root>/context/CONTEXT.md`)
 - Understand what the feature is supposed to do
 - Identify the user-facing behavior boundary
 
-This context helps you write a better issue — but the issue itself should NOT reference specific files, line numbers, or internal implementation details.
+This context helps you write a better issue; but the issue itself should NOT reference specific files, line numbers, or internal implementation details.
 
 ### 3. Assess scope: single issue or breakdown?
 
@@ -48,9 +60,9 @@ Keep as a single issue when:
 
 ### 4. Publish the issue(s) to the project issue tracker
 
-Publish each issue to the project issue tracker as configured in `docs/afk-workflow/config/issue-tracker.md` — GitHub via `gh issue create`, GitLab via `glab issue create`, or a markdown file under `docs/afk-workflow/backlog/<feature>/issues/` for the local-markdown tracker. Apply the `needs-triage` triage label (for the local-markdown tracker, write a `Status: needs-triage` line near the top of the file) so each issue enters the normal triage flow.
+Publish each issue to the project issue tracker as configured in `<workflow-root>/config/issue-tracker.md`; GitHub via `gh issue create`, GitLab via `glab issue create`, or a markdown file under `<workflow-root>/backlog/<feature>/issues/` for the local-markdown tracker. Apply the `needs-triage` triage label (for the local-markdown tracker, write a `Status: needs-triage` line near the top of the file) so each issue enters the normal triage flow.
 
-Do NOT ask the user to review first — just file and share the created issue references (URLs, or file paths for the local tracker).
+Do NOT ask the user to review first; just file and share the created issue references (URLs, or file paths for the local tracker).
 
 #### For a single issue
 
@@ -73,7 +85,7 @@ Use this template:
 
 ## Additional context
 
-[Any extra observations from the user or from codebase exploration that help frame the issue — e.g. "this only happens when using the Docker layer, not the filesystem layer" — use domain language but don't cite files]
+[Any extra observations from the user or from codebase exploration that help frame the issue; e.g. "this only happens when using the Docker layer, not the filesystem layer"; use domain language but don't cite files]
 ```
 
 #### For a breakdown (multiple issues)
@@ -89,7 +101,7 @@ Use this template for each sub-issue:
 
 ## What's wrong
 
-[Describe this specific behavior problem — just this slice, not the whole report]
+[Describe this specific behavior problem; just this slice, not the whole report]
 
 ## What I expected
 
@@ -103,7 +115,7 @@ Use this template for each sub-issue:
 
 - #<issue-reference> (if this issue can't be fixed until another is resolved)
 
-Or "None — can start immediately" if no blockers.
+Or "None; can start immediately" if no blockers.
 
 ## Additional context
 
@@ -112,21 +124,21 @@ Or "None — can start immediately" if no blockers.
 
 When creating a breakdown:
 
-- **Prefer many thin issues over few thick ones** — each should be independently fixable and verifiable
-- **Mark blocking relationships honestly** — if issue B genuinely can't be tested until issue A is fixed, say so. If they're independent, mark both as "None — can start immediately"
+- **Prefer many thin issues over few thick ones**; each should be independently fixable and verifiable
+- **Mark blocking relationships honestly**; if issue B genuinely can't be tested until issue A is fixed, say so. If they're independent, mark both as "None; can start immediately"
 - **Create issues in dependency order** so you can reference real issue identifiers in "Blocked by"
-- **Maximize parallelism** — the goal is that multiple people (or agents) can grab different issues simultaneously
+- **Maximize parallelism**; the goal is that multiple people (or agents) can grab different issues simultaneously
 
 #### Rules for all issue bodies
 
-- **No file paths or line numbers** — these go stale
-- **Use the project's domain language** (check `docs/afk-workflow/context/CONTEXT.md` if it exists)
-- **Describe behaviors, not code** — "the sync service fails to apply the patch" not "applyPatch() throws on line 42"
-- **Reproduction steps are mandatory** — if you can't determine them, ask the user
-- **Keep it concise** — a developer should be able to read the issue in 30 seconds
+- **No file paths or line numbers**; these go stale
+- **Use the project's domain language** (check `<workflow-root>/context/CONTEXT.md` if it exists)
+- **Describe behaviors, not code**; "the sync service fails to apply the patch" not "applyPatch() throws on line 42"
+- **Reproduction steps are mandatory**; if you can't determine them, ask the user
+- **Keep it concise**; a developer should be able to read the issue in 30 seconds
 
 After filing, print all issue references (with blocking relationships summarized) and ask: "Next issue, or are we done?"
 
 ### 5. Continue the session
 
-Keep going until the user says they're done. Each issue is independent — don't batch them.
+Keep going until the user says they're done. Each issue is independent; don't batch them.

@@ -1,0 +1,1 @@
+{"type":"object","additionalProperties":false,"required":["outcome","summary","commit_message"],"properties":{"outcome":{"type":"string","enum":["ready","needs-info","ready-for-human"]},"summary":{"type":"string"},"commit_message":{"type":"string"}}}

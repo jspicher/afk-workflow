@@ -1,0 +1,5 @@
+interface:
+  display_name: "Afk"
+  short_description: "AFK Workflow: afk workflow"
+policy:
+  allow_implicit_invocation: false
