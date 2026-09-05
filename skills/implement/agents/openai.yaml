@@ -1,0 +1,5 @@
+interface:
+  display_name: "Implement"
+  short_description: "AFK Workflow: implement workflow"
+policy:
+  allow_implicit_invocation: false

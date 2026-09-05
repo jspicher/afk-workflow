@@ -1,371 +1,433 @@
-# afk-workflow
+# AFK Workflow
 
-A portable Claude Code **marketplace plugin** that packages Matt Pocock's
-"real engineer's" agentic workflow -- grill → PRD → vertical-slice issues →
-triage → TDD -- plus a headless **Ralph** AFK (Away-From-Keyboard) loop, so you
-can drop the whole pipeline into any repo with one install.
+Plan with a human, implement with an agent, and review before committing.
+AFK Workflow packages Matt Pocock's engineering skills with a portable Bash runner
+for Claude Code and Codex CLI.
 
-It bundles **14 skills**, two terminal runner scripts (`once.sh` / `afk.sh`),
-an in-session `/afk` command, and a per-repo `setup` skill that teaches the
-skills where your issues, triage labels, and domain docs live.
+**v0.6.0 defaults:** local Markdown tickets, assets under `./docs/afk-workflow/`,
+Claude as implementer, Codex as reviewer, and two repair attempts per ticket.
+Both roles are configurable; Claude-only and Codex-only runs are supported.
 
-> Credit: the skills are derived from [`mattpocock/skills`](https://github.com/mattpocock/skills)
-> and the runner scripts from `mattpocock/ai-hero-cli`, both MIT. This repo
-> adapts them for cross-repo reuse with Windows-specific runner fixes and
-> **vendors them into this plugin** -- there is nothing to install from those
-> upstream repos.
+The plugin includes 18 skills. Claude uses a marketplace plugin; Codex uses
+versioned per-project copies. The headless runner uses Bash, Git, `jq`, and ordinary
+shell utilities. No Python or Node runtime is introduced.
 
----
+Skills derive from [mattpocock/skills](https://github.com/mattpocock/skills), with the
+runner originally derived from [ai-hero-cli](https://github.com/mattpocock/ai-hero-cli).
+Both are MIT licensed. [Upgrade decisions and provenance](docs/v0.6.0-upgrade.md)
+explain the deliberate differences.
 
 ## The workflow
 
-Pocock splits the work into a human **day shift** (planning) and an autonomous
-**night shift** (AFK implementation). Solid arrows are the **required** path;
-dashed branches are **optional** helpers you reach for when you need them.
-
 ```mermaid
 flowchart TD
-    A([New repo]) ==> B["/setup-afk-skills<br/>scaffold docs/afk-workflow/ config + CLAUDE.md block"]
-
-    B ==> C{{"DAY SHIFT - plan with a human"}}
-
-    C -. optional .-> D["/grill-me or /grill-with-docs<br/>stress-test the plan; write CONTEXT.md + ADRs"]
-    C -. optional .-> E["/to-prd<br/>turn the conversation into a PRD"]
-    C -. report bugs .-> F["/qa<br/>conversational bug intake, files issues"]
-    D -.-> G
-    E -.-> G
-    C ==> G["/to-issues<br/>plan or PRD into vertical-slice issues"]
-    F -.-> H
-    G ==> H["/triage<br/>label the board, move issues to ready-for-agent"]
-
-    H ==> PR["/to-prs<br/>group ready issues into an ordered PR plan;<br/>each batch gates the board for one night-shift run"]
-    PR ==> I{{"NIGHT SHIFT - AFK implementation"}}
-    I ==> J["scripts/afk.sh N (terminal loop)<br/>or /afk (one in-session pass) or scripts/once.sh (smoke test)"]
-    J ==> K["each iteration: pick a ready-for-agent issue,<br/>/tdd, pre-commit gate, commit, update Status"]
-    K -. hard bug .-> L["/diagnose"]
-    K -. refactor or reset .-> M["/improve-codebase-architecture<br/>/zoom-out, /caveman"]
-    L -.-> K
-    M -.-> K
-    K ==> N{"&lt;promise&gt;NO MORE TASKS&lt;/promise&gt;<br/>or iteration cap reached?"}
-    N -. not yet .-> K
-    N == done ==> O["YOU: QA, impose taste, queue new issues"]
-    O -. next cycle .-> C
-
-    classDef req fill:#1f6feb,stroke:#0b3d91,color:#ffffff;
-    classDef opt fill:#ffffff,stroke:#9aa0a6,stroke-dasharray:5 5,color:#202124;
-    class B,G,H,PR,J,K,O req;
-    class D,E,F,L,M opt;
+  Setup[Setup: location, storage, roles, checks] --> Plan[Human planning / grilling]
+  Plan --> Spec[to-spec: approved specification]
+  Spec --> Tickets[to-tickets: dependency-aware slices]
+  Tickets --> Triage[triage: AFK/HITL, approvals, readiness]
+  Triage --> PRs[to-prs: plan release batches]
+  PRs --> Pick[Pick one ready, unblocked AFK ticket]
+  Pick --> Implement[Implementer: TDD at approved seams]
+  Implement --> Gate[Project checks]
+  Gate --> Review[Fresh reviewer: Standards and Spec]
+  Review -->|pass| Commit[Commit and verify ticket update]
+  Review -->|blocking findings| Repair[Implementer repairs: up to two attempts]
+  Gate -->|failure| Repair
+  Repair --> Gate
+  Repair -->|exhausted or human input| Save[Save patch and reports, restore source, escalate]
+  Save --> Pick
+  Commit --> Pick
+  Pick -->|no runnable work| Human[Human QA, resolve handoffs, integrate]
 ```
 
-### Commands, in order
-
-| # | Step | Command | Required? | Run in |
-|---|---|---|---|---|
-| 1 | Set up the repo (once) | `/setup-afk-skills` | **Required** | **Fresh** -- once per repo |
-| 2 | Stress-test the plan | `/grill-me` or `/grill-with-docs` | Optional | **Fresh** -- starts the planning session |
-| 3 | Write a PRD | `/to-prd` | Optional | **Same session** -- synthesizes the grill |
-| 4 | Create the backlog | `/to-issues` | **Required** \* | **Either** -- same session, or fresh from the saved PRD |
-| - | (alt) File bugs conversationally | `/qa` | Optional | **Fresh** -- starts a QA session |
-| 5 | Label the board | `/triage` (to `ready-for-agent`) | **Required** | **Fresh** -- reads the board; resumable |
-| - | Plan the PRs | `/to-prs` | **Recommended** | **Fresh** -- reads the board; re-runnable per batch |
-| 6 | Run the night shift | `docs/afk-workflow/scripts/afk.sh N` (or `/afk`, or `once.sh`) | **Required** | **Terminal** from repo root, fresh per iteration (or `/afk` in-session) |
-| - | ...during build: a hard bug | `/diagnose` | Optional | **Either** -- fresh on a bug, or mid-build |
-| - | ...during build: messy code | `/improve-codebase-architecture`, `/zoom-out`, `/caveman` | Optional | **Same session** -- acts on current work |
-| 7 | Re-enter the loop | you: QA, queue new issues, repeat | -- | -- |
-
-\* You need *some* issues in `ready-for-agent` state before the loop does
-anything. Get them there with `/to-issues` (from a plan/PRD), `/qa` (from bug
-reports), or by hand-writing files under `docs/afk-workflow/backlog/<feature>/issues/`.
-Step 6's loop runs `/tdd` on each issue automatically -- you don't invoke it directly.
-
-### Fresh session vs. continue?
-
-The single rule: **start a fresh session** for anything that begins a new thread
-(`/grill-me`, `/grill-with-docs`, `/qa`) or reads only durable state -- files or
-the issue tracker (`/triage`, `/to-issues` from a saved `PRD.md`, the night-shift
-scripts, `/setup-afk-skills`). **Continue in the same session** only for skills
-that work off the live conversation you just had: `/to-prd` (synthesizes the
-grill) and `/zoom-out` (maps the code you're already looking at). `/to-issues`
-is the one that goes both ways -- same session if the plan lives only in the
-current chat, fresh if you already saved a PRD with `/to-prd` (the cleaner path).
-(`/caveman` is orthogonal -- an output-style toggle you can flip in any session.)
-The night shift is fresh-by-design: every `afk.sh` iteration spawns a brand-new
-`claude` whose only memory is the issue *files*.
-
-### Step 6 -- the literal commands
-
-`/setup-afk-skills` copies the runners into `docs/afk-workflow/scripts/`, so from
-your **project root** (where the issue glob and `git log` resolve) it's just:
-
-```bash
-bash docs/afk-workflow/scripts/once.sh        # one iteration (smoke test)
-bash docs/afk-workflow/scripts/afk.sh 20      # the loop, up to 20 iterations
-```
-
-`/afk` is the in-session equivalent of a single iteration -- type it inside a
-Claude Code session, no path needed.
+Planning/grilling and `to-spec` are optional when you already have a clear ticket.
+**Triage stays required:** new tickets start `needs-triage`, not agent-ready.
+`to-prs` is recommended for batching; it creates a plan and printed gating commands,
+not pull requests. The runner implements one ticket at a time on the current branch.
+It does not push, open PRs, merge, or deploy.
 
 ## Install
 
-This repo is a single-plugin marketplace. From any project (or globally):
+### Claude Code
 
-```
+In Claude Code:
+
+```text
 /plugin marketplace add jspicher/afk-workflow
 /plugin install afk-workflow@afk-workflow
+/afk-workflow:setup-afk-skills
 ```
 
-Or point at a local clone during development:
+Plugin skills use qualified names such as `/afk-workflow:to-tickets` and
+`/afk-workflow:code-review`. This avoids accidentally invoking a personal or built-in
+skill with the same name. During development load the isolated checkout using
+`claude --plugin-dir /path/to/afk-workflow`.
+For headless development runs, set `AFK_CLAUDE_PLUGIN_DIR` to that checkout so the
+spawned Claude sessions load the same plugin version. Normal runs use the installed
+Claude plugin; update it along with the project Codex copies and runtime.
 
-```
-/plugin marketplace add C:/path/to/afk-workflow
-/plugin install afk-workflow@afk-workflow
-```
+### Codex CLI: project skill copies
 
-**That single install is everything** -- all 14 skills (including the ones
-derived from `mattpocock/skills`) are bundled inside this plugin, so they become
-available immediately. You do **not** install `mattpocock/skills`, the
-`ai-hero-cli`, or anything else separately.
-
-The `once.sh` / `afk.sh` night-shift scripts are copied into your repo at
-`docs/afk-workflow/scripts/` by `/setup-afk-skills`, then run from a terminal
-(not as slash commands) -- see
-[Runner scripts (the night shift)](#runner-scripts-the-night-shift----cli-usage)
-for how to run them.
-
-## First-time setup (per repo)
-
-The engineering skills are **config-driven** -- they read `docs/afk-workflow/config/*.md`
-in the consuming repo to learn your issue tracker, triage labels, and domain
-doc layout. Run the setup skill once per repo before first use:
-
-```
-/setup-afk-skills
-```
-
-It walks you through three choices (issue tracker: GitHub / GitLab / local
-markdown / other · triage label vocabulary · single- vs multi-context domain
-docs), scaffolds an `## Agent skills` block in `CLAUDE.md`/`AGENTS.md` plus
-`docs/afk-workflow/config/{issue-tracker,triage-labels,domain}.md`, and copies
-the night-shift runner scripts into `docs/afk-workflow/scripts/` so you can launch
-the loop from your project root.
-
-## What it writes in a consuming repo
-
-Everything the workflow creates or reads lives under a single, removable
-`docs/afk-workflow/` directory -- plus one small pointer block in
-`CLAUDE.md`/`AGENTS.md`:
-
-```
-docs/afk-workflow/
-├── config/         # issue-tracker.md, triage-labels.md, domain.md  (from setup)
-├── scripts/        # once.sh, afk.sh, prompt.md     (night-shift runners, from setup)
-├── backlog/        # <feature>/PRD.md + <feature>/issues/NN-*.md     (to-prd, to-issues)
-├── context/        # CONTEXT.md / CONTEXT-MAP.md   (domain glossary, grill-with-docs)
-├── adr/            # 0001-*.md ...                 (architecture decision records)
-└── out-of-scope/   # <concept>.md                 (rejected-feature records, triage)
-```
-
-To remove the workflow's footprint, delete `docs/afk-workflow/` and the
-`## Agent skills` block from `CLAUDE.md`/`AGENTS.md`.
-
-> **`.gitignore` note:** these files are meant to be committed so they travel
-> with the branch. But **check your `.gitignore` first** -- some repos ignore all
-> of `docs/` (e.g. a `/docs/*` rule), which silently excludes the runner scripts
-> **and** your issue files. That's fine for running the loop locally (the scripts
-> and `afk.sh`'s issue glob read from disk, not git), but if you want them tracked
-> and shared, `git add -f docs/afk-workflow/...` or add a `!docs/afk-workflow/`
-> negation rule.
-
-> **Multi-context monorepos:** per-context `CONTEXT.md` + ADRs stay co-located
-> with their `src/<context>/` code; only `CONTEXT-MAP.md` and system-wide ADRs
-> live under `docs/afk-workflow/`.
-
-## Skills
-
-| Skill | Stage | Run in | What it does |
-|---|---|---|---|
-| `grill-me` | Plan | Fresh | Relentless one-question-at-a-time interview to reach shared understanding of a plan |
-| `grill-with-docs` | Plan | Fresh | Same, but for an existing codebase -- writes `CONTEXT.md` + ADRs as decisions land |
-| `to-prd` | Plan | Same session | Synthesizes the conversation into a Product Requirements Document |
-| `to-issues` | Plan | Either | Breaks a PRD into independently-grabbable **vertical-slice** issues with DAG dependencies |
-| `triage` | Plan | Fresh | State-machine triage; applies the canonical label vocabulary to the whole board |
-| `to-prs` | Plan | Fresh | Groups a triaged backlog into an ordered, dependency-safe sequence of PR-sized batches; writes `PR-PLAN.md`. Plans only -- never opens PRs |
-| `qa` | Plan | Fresh | Interactive QA session -- user reports bugs conversationally; files durable, tracker-agnostic issues |
-| `tdd` | Build | Auto (in loop) | Strict red-green-refactor loop (+ deep-modules / interface / mocking / refactoring refs) |
-| `diagnose` | Build | Either | Disciplined bug/perf diagnosis loop: reproduce → minimise → hypothesise → instrument → fix → regression-test |
-| `improve-codebase-architecture` | Build | Fresh or same | Ousterhout "deep module" refactoring, interface design, domain language |
-| `zoom-out` | Build | Same session | Map an unfamiliar area of code one layer up (relevant modules + callers) |
-| `caveman` | Build | Any (mode) | Ultra-terse output mode -- ~75% fewer tokens; stays on until you say "normal mode" |
-| `write-a-skill` | Meta | Fresh | Author a new skill |
-| `setup-afk-skills` | Setup | Fresh (once) | Scaffold the per-repo `docs/afk-workflow/config/*` config the other skills read |
-
-## Runner scripts (the night shift) -- CLI usage
-
-The night shift runs from a **normal terminal** (Git Bash on Windows), not from
-inside a Claude Code session. Both scripts must be run **from your project root**
-so `docs/afk-workflow/` and git history resolve, and both re-exec themselves out
-of WSL automatically (WSL's keyring breaks `gh` push auth).
-
-| Script | Signature | Purpose |
-|---|---|---|
-| `once.sh` | `once.sh [issues_glob]` | Run **one** Ralph iteration. Smoke test before committing to the loop. |
-| `afk.sh` | `afk.sh <max_iterations> [issues_glob]` | Run the loop until the stop sentinel fires or the iteration cap is hit. |
-
-In both, `issues_glob` is optional and defaults to
-`docs/afk-workflow/backlog/*/issues/*.md` (the local-markdown convention from
-`/setup-afk-skills`). For a GitHub/GitLab tracker, edit the `issues=`
-line in the script to use `gh issue list` / `glab issue list`.
-
-### Where they live
-
-`/setup-afk-skills` copies `once.sh`, `afk.sh`, and `prompt.md` into your repo at
-`docs/afk-workflow/scripts/`, so every example below uses that short,
-root-relative path. (Haven't run setup, or want to run straight from the plugin?
-Copy those three files out of the installed plugin -- typically
-`~/.claude/plugins/marketplaces/afk-workflow/scripts/`, or run
-`find ~/.claude/plugins -path '*afk-workflow*/scripts/afk.sh'` to locate them.)
-
-### `once.sh` -- a single iteration (smoke test)
+Obtain an AFK Workflow source checkout at the desired version. From the target
+project, preview the installation, then apply it:
 
 ```bash
-# default: every issue under docs/afk-workflow/backlog/*/issues/*.md
+bash /path/to/afk-workflow/scripts/install-codex.sh .
+bash /path/to/afk-workflow/scripts/install-codex.sh . --apply
+```
+
+Start a new Codex session in that project and invoke:
+
+```text
+$setup-afk-skills
+```
+
+The installer copies skills into `.agents/skills/`, including the setup assets
+needed without Claude installed. `.agents/afk-workflow-installed.json` records
+the version and managed file hashes. An additional runtime manifest records setup's
+bundled runners. Both are installation metadata, not credentials.
+
+Run the same installer from an updated source checkout to update copies. It
+preflights the whole copy set and refuses modified files or conflicting unrelated
+skills. Review and reconcile conflicts first. Extra unmanaged files are preserved.
+Copies are intentionally pinned; updating the source checkout does not update
+every project automatically.
+
+Codex discovers `.agents/skills/` separately from the selected asset directory.
+The default reviewer is Codex, so a default headless run needs these project copies
+even when setup was invoked from Claude. Configure both roles as Claude if Codex
+is not being used. [Codex skill locations](https://learn.chatgpt.com/docs/build-skills)
+
+## Setup and storage
+
+The setup skill explores the project, then asks one question at a time:
+
+1. **Asset parent directory:** `./docs` for new projects; existing choices are retained.
+2. **Ticket storage:** local Markdown by default, or GitHub, GitLab, Jira, another workflow.
+3. **Roles:** Claude implements and Codex reviews by default; models are optional.
+4. The actual project checks, applicable label mappings, and domain-document layout.
+
+The asset location and ticket method are independent. GitHub tickets still need
+local configuration and runners. A GitHub remote never silently changes the local
+storage default.
+
+| Storage | Interactive skills | Built-in headless runner |
+| --- | --- | --- |
+| Local Markdown | Yes | Yes |
+| GitHub Issues | Yes, through `gh` | Yes, through `gh` |
+| GitLab | Recorded project workflow | Not in v0.6.0 |
+| Jira | Recorded project workflow/integration | Not in v0.6.0 |
+| Other | User-described integration | Not in v0.6.0 |
+
+Interactive support for Jira or another service means following the recorded
+integration; setup does not install or authenticate an unspecified connector.
+Unsupported headless stores fail explicitly rather than reading a local backlog.
+
+Choosing `./.docs` creates this layout:
+
+```text
+.docs/afk-workflow/
+├── config/
+│   ├── workflow.json          # canonical roles, storage, labels and checks
+│   ├── issue-tracker.md       # project-specific ticket conventions
+│   ├── triage-labels.md       # human-readable role guidance
+│   ├── domain.md              # domain document locations and reading rules
+│   └── installed-runtime.json
+├── scripts/                   # entrypoints, shared helpers, schemas and prompts
+├── backlog/<feature>/
+│   ├── spec.md
+│   ├── PR-PLAN.md
+│   └── issues/<NN>-<slug>.md
+├── context/                   # CONTEXT.md or CONTEXT-MAP.md
+├── adr/
+└── out-of-scope/
+```
+
+Context/ADR/backlog directories are created when needed. Small managed blocks in
+`AGENTS.md` and `CLAUDE.md` point at the selected root. If Claude already forwards
+to `AGENTS.md`, setup preserves that arrangement. Reruns update managed blocks
+without replacing surrounding instructions or custom tracker/domain notes.
+
+Setup reports ignore behavior. It never force-adds assets or changes ignore rules.
+An intentionally ignored `.docs/` backlog remains local-only and is absent from CI
+and other checkouts. Copy it deliberately when preparing a worktree that needs it.
+
+## Configuration
+
+Edit the selected root's `config/workflow.json`. Example for a project with an
+existing `npm run check` command:
+
+```json
+{
+  "schemaVersion": 1,
+  "assetsDir": "./docs",
+  "tracker": { "type": "local", "format": "markdown" },
+  "roles": {
+    "implementer": { "cli": "claude" },
+    "reviewer": { "cli": "codex" }
+  },
+  "review": { "maxRepairAttempts": 2 },
+  "checks": [["npm", "run", "check"]]
+}
+```
+
+Use the project's actual complete gate. Each check is an argument array executed
+directly; the runner does not `eval` configuration. For an environment requirement,
+use an explicit command such as `["env","TURBO_FORCE=true","pnpm","test"]`.
+A check may intentionally invoke a shell with its own command string, but that
+must be an explicitly reviewed project command.
+
+`roles.<role>.cli` accepts `claude` or `codex`. Optional `model` strings are passed
+to that role's CLI; omitted models inherit its configuration. To reverse roles:
+
+```json
+"roles": {
+  "implementer": { "cli": "codex" },
+  "reviewer": { "cli": "claude" }
+}
+```
+
+For GitHub, set `tracker.type` to `github` and `tracker.repository` to `owner/repo`.
+Optional `tracker.labels` maps canonical states to actual labels, for example
+`{"ready-for-agent":"agent:ready","needs-info":"waiting:requirements"}`.
+Unspecified labels use their canonical names. Closed-as-completed issues satisfy
+blockers; closed-as-not-planned issues do not. The adapter includes pagination,
+comments and native issue dependencies, then verifies tracker mutations.
+Native blockers from another repository retain their identity and block this
+runner until resolved in the configured ticket graph; matching issue numbers in
+different repositories never count as the same ticket.
+
+Use `tracker.format: "fos-yaml"` for existing FoS-style YAML tickets. The adapter
+supports simple scalar status/type/id and inline or block `depends_on` lists.
+It is not a general YAML parser: malformed or unsupported metadata is an error,
+never an empty queue. Preserve project-specific fields and body content.
+
+## Commands
+
+Run headless commands from the target repository. Replace `docs` with the selected
+asset parent in these examples:
+
+```bash
+# Up to ten ticket attempts, using configured roles
+bash docs/afk-workflow/scripts/afk.sh 10
+
+# One ticket lifecycle, including review and repair
 bash docs/afk-workflow/scripts/once.sh
 
-# scope to one feature's backlog:
-bash docs/afk-workflow/scripts/once.sh "docs/afk-workflow/backlog/checkout-redesign/issues/*.md"
+# Per-run role overrides; project config is unchanged
+bash docs/afk-workflow/scripts/afk.sh 10 --implementer codex --reviewer claude
+bash docs/afk-workflow/scripts/once.sh --implementer claude --reviewer claude
+
+# Restrict local selection; quote the glob so the runner expands it
+bash docs/afk-workflow/scripts/afk.sh 5 'docs/afk-workflow/backlog/search/issues/*.md'
+
+# Use a supplied config explicitly
+bash docs/afk-workflow/scripts/afk.sh 5 --config docs/afk-workflow/config/workflow.json
+
+# Independent review for interactive implementation
+bash docs/afk-workflow/scripts/review.sh BASE_COMMIT docs/afk-workflow/backlog/search/spec.md
 ```
 
-It concatenates your open issues + the last 5 commits + `prompt.md`, pipes them
-into a headless `claude` run (`--print --output-format stream-json`), and the
-agent picks one `ready-for-agent` issue, implements it with `/tdd`, runs your
-pre-commit gate, commits, and updates that issue's `Status:`. Then it exits.
-Output streams live (needs `jq`, which Git Bash ships) so you can watch the
-single iteration before trusting the loop unattended. (The `--print` flag is
-load-bearing -- without it, bare `claude` on a piped prompt tries to open the
-interactive TUI, which can't render over a pipe and just hangs.)
+Role flags override configuration. If an override changes CLI, that CLI's own
+default model is used; an engine-specific model from the replaced role is not
+passed to the other provider. The two roles can use the same CLI but still run in
+separate sessions. There is no automatic provider fallback.
 
-### `afk.sh` -- the loop
+`afk.sh N` counts ticket attempts, not individual model calls. A ticket can have
+its initial implementation/review plus two repair attempts. `once.sh` attempts
+exactly one ticket. A specific local ticket path is also a valid exact glob.
 
-`max_iterations` is **required** -- a hard cap so a runaway agent can't loop
-forever. The optional second arg is the issues glob (same default as `once.sh`).
+| Exit | Meaning |
+| --- | --- |
+| 0 | Completed requested single ticket, or no agent-ready work remains |
+| 1 | Runtime/configuration/CLI/recovery error; inspect artifacts |
+| 2 | Blocked work or tickets handed back to a human |
+| 3 | Ticket-attempt limit reached with agent-ready work remaining |
+| 130 | Interrupted run |
+
+`<promise>NO MORE TASKS</promise>` is emitted by the controller only for its verified
+completion outcome. It is not inferred from arbitrary model text or tool output.
+Human-only backlog items can still exist; completion of the agent queue is not a
+claim that all project work is finished.
+
+## Ticket readiness and review
+
+New Markdown tickets keep the existing body format:
+
+```markdown
+# 01: Search by title
+Status: needs-triage
+Type: AFK
+
+## What to build
+Allow searching titles through the existing search interface.
+
+## Blocked by
+None
+
+## Acceptance criteria
+- A title match is returned through the public search interface.
+```
+
+Local blockers use filename stems such as `01-search-index`, or
+`other-feature/01-search-index` across features. Markdown links to those identifiers
+are accepted. GitHub uses `#123` and native blocking links. Ambiguous titles and
+missing references block execution. State values stay canonical in local files;
+GitHub uses the configured label mapping. An explicit HITL type is never runnable.
+
+During triage, record the human's actual test approval:
+
+```markdown
+## Approved test seams
+Approval: approved
+- Existing search interface: query a title and inspect the returned matches.
+```
+
+This is durable approval, not a new confirmation prompt on each headless iteration.
+For a documentation-only change, an approved explanation that no new tests are
+needed is valid. An unapproved or contradictory ticket is handed back as
+`needs-info`. New tickets cannot bypass triage just because planning created them.
+
+The implementer works at those seams. The controller runs the configured full
+gate, then starts a fresh reviewer against the starting commit and all working
+changes, including new files. Standards and Spec are reported separately. Concrete
+violations block completion; advisory code smells do not. Missing review evidence,
+invalid structured results, or an unavailable reviewer never count as a pass.
+
+Implementers use the existing full-access/no-prompt execution posture. Reviewers
+use read-only permissions. The runner checks that review did not change the source
+and that the committed tree matches the reviewed tree. Project instructions and
+AFK/HITL boundaries still apply.
+
+## Recovery and post-loop work
+
+Run artifacts live in the checkout's Git metadata, resolved through `git rev-parse
+--git-path afk-workflow`. This works with registered worktrees and avoids dirtying
+the project with logs. The runner prints the exact location. Preserve these local
+artifacts deliberately if you remove the worktree.
+
+After exhausted repairs the runner saves a binary-capable tracked patch, copies
+new files, and verifies them before restoring ticket changes. It records a
+`ready-for-human` handoff and continues independent work. A failed backup or restore
+stops the run. Recover the tracked changes with `git apply` against the recorded
+baseline and copy the saved `recovery/new/` files back after reviewing them.
+
+The runner refuses unrelated dirty/untracked work and another run's checkout lock.
+A stale lock records its PID: verify that the process is gone before removing the
+lock directory. Interrupted implementation leaves a pending journal and stops a
+restart rather than silently repeating the ticket. Inspect the patch, working
+state and journal before manually resolving that interruption.
+
+A successful implementation commit is journaled before its tracker update. A clean
+restart can reconcile completion when the ticket still matches the saved decision.
+Recovery recognizes the exact saved local completion write and the run's own
+GitHub progress marker, including interruptions after a metadata amendment or
+issue closure. Changed human decisions, other metadata edits or unrelated source
+changes stop for reconciliation; the runner does not overwrite that state.
+For tracked local tickets, bookkeeping is folded into the implementation commit;
+ignored tickets remain local. Escalations may create a separate bookkeeping commit
+when their ticket files are tracked.
+
+After the loop, read `needs-info` and `ready-for-human` progress notes, inspect both
+review axes and the commits, perform human QA, and integrate using the project's
+normal PR process. The automated review does not replace required human visual,
+security, release, or stakeholder gates.
+
+## Upgrade and relocate existing projects
+
+This release adopts **to-tickets**, **to-spec**, and **spec.md**. The old
+`to-issues`/`to-prd` commands are not aliases. Update active commands and links;
+preserve historical records. Setup guides the migration of active `PRD.md` or
+`prd.md`, detects collisions, and retains backups.
+
+Use the relocation helper to preview and move an existing AFK tree:
 
 ```bash
-# up to 20 iterations over the default backlog glob
-bash docs/afk-workflow/scripts/afk.sh 20
-
-# 50 iterations, scoped to one feature
-bash docs/afk-workflow/scripts/afk.sh 50 "docs/afk-workflow/backlog/checkout-redesign/issues/*.md"
-
-# a single pass, but with the loop's stream-json output + sentinel check
-bash docs/afk-workflow/scripts/afk.sh 1
+bash /path/to/afk-workflow/scripts/migrate.sh --from docs --to .docs
+bash /path/to/afk-workflow/scripts/migrate.sh --from docs --to .docs --apply
 ```
 
-Each iteration runs the same pick → `/tdd` → gate → commit → update-`Status:`
-cycle as `once.sh`, but streams the agent's output as `stream-json` and inspects
-the final result. The loop **stops early** the moment the agent emits
-`<promise>NO MORE TASKS</promise>` (i.e. zero issues left in `ready-for-agent`);
-otherwise it runs until `max_iterations`. Requires `jq` + `mktemp` (Git Bash
-ships both).
+It inventories literal references, backs up the AFK tree and affected files, moves
+only the workflow tree, updates references/configuration and verifies the results.
+It refuses existing destinations and symlink paths. Review the diff and ignore
+behavior afterward. Other project documentation stays in its original location.
 
-> ⚠️ Both scripts run with `--dangerously-skip-permissions` -- the agent edits
-> files, runs your gate, and commits with **no approval prompts**. **Run on a
-> dedicated branch or a git worktree and keep `main`/`master` protected.**
-> Pocock's original sandboxes each agent in Docker (his "Sand Castle" lib); this
-> lighter setup trades that for branch isolation.
+Already using `.docs/afk-workflow/`? Select it during setup; no move is needed.
+Preserve existing YAML ticket formats, domain notes, and local-only rules. Never
+point the generic installer at a customized old runtime and force replacement:
+review the reported conflicts, preserve a copy, and reconcile first.
 
-### End-to-end CLI example
+## Skills and invocation
+
+Use `/afk-workflow:<name>` in Claude and `$<name>` in Codex:
+
+| Skill | Purpose |
+| --- | --- |
+| setup-afk-skills | Configure location, storage, roles, checks and conventions |
+| grill-me | Stress-test an idea one question at a time |
+| grill-with-docs | Grill while recording domain context and ADRs |
+| to-spec | Synthesize an approved specification |
+| to-tickets | Create dependency-aware AFK/HITL slices |
+| triage | Verify requests, record approvals, establish readiness |
+| to-prs | Plan release batches and their board-gating commands |
+| implement | Interactive implementation with the shared review contract |
+| afk | Launch one configured ticket lifecycle |
+| tdd | Behavioral tests at approved seams |
+| code-review | Separate Standards and Spec reviews |
+| codebase-design | Shared module/interface/seam vocabulary |
+| diagnose | Reproduce and diagnose with redacted evidence |
+| improve-codebase-architecture | Explore active areas and present opportunities |
+| qa | Conversational bug intake into the configured tracker |
+| zoom-out | Map modules and callers at a higher level |
+| write-a-skill | Author focused reusable skills |
+| caveman | Optional terse output style |
+
+Planning that synthesizes the conversation can stay in the same session. Triage,
+ticket execution and reviews work from durable artifacts. Each new ticket starts
+fresh; repairs resume only its captured implementer session. Each review is fresh.
+
+## Prerequisites and troubleshooting
+
+- Git, Bash, `jq`, and standard utilities (`awk`, `sed`, `find`, `sort`, `cp`, `diff`,
+  `mktemp`). Git Bash is the Windows shell; validate `jq` separately.
+- Installed, authenticated CLIs for the selected roles. The runtime requires
+  Claude's `--permission-prompts` and structured outputs, or Codex's `exec`, JSONL,
+  output schema, and last-message output. Existing subscription/CLI auth is reused;
+  the runner does not set up API keys or disable normal skill discovery.
+- GitHub mode additionally requires an authenticated `gh` with issue access.
+- A configured project gate and a branch/worktree with clean starting source.
+
+On Windows, invoking the shell entrypoint through WSL re-executes Git Bash to retain
+Windows CLI/Git authentication. Explicit PATH order wins; `~/.local/bin` is only a
+fallback. Prompts travel via stdin to avoid the Windows argument-length limit.
+Honcho is disabled only for headless Claude invocations, preserving the existing
+workaround for its teardown hook.
+
+If a CLI fails, inspect its role-specific event log and pending journal. If Codex
+cannot find a skill, reinstall the project copies and start a new session. If the
+config cannot be found or its location disagrees with `assetsDir`, run setup or
+use `--config`; the runner does not silently recreate a default docs tree.
+
+## Development and validation
 
 ```bash
-# from your project root, on a throwaway branch
-git switch -c afk/checkout-redesign
-GLOB="docs/afk-workflow/backlog/checkout-redesign/issues/*.md"
-
-# 1. smoke-test a single issue
-bash docs/afk-workflow/scripts/once.sh "$GLOB"
-
-# 2. happy with it? let it run the backlog down, up to 30 passes
-bash docs/afk-workflow/scripts/afk.sh 30 "$GLOB"
-
-# 3. review the commits the agent made
-git log --oneline master..HEAD
+bash tests/run.sh
+bash tests/adapters.sh
+bash tests/recovery.sh
+bash tests/hooks.sh
+shellcheck -x -P scripts scripts/*.sh tests/*.sh
 ```
 
-**In-session alternative:** if you're already in a Claude Code session and want
-to watch the agent work one task interactively, use the bundled `/afk` command
-instead of these terminal scripts.
+The fixture suite uses stub CLIs and disposable Git repositories. It validates
+role selection, commit gating, repairs, blockers, approval handoffs, failure
+handling, preservation and relocation. Live CLI checks should use separate
+disposable fixtures, not a real backlog or production tracker.
 
-## After the loop
+Opt-in live checks (up to ten minutes per pairing, using your signed-in CLIs):
 
-There's **no scripted cleanup phase.** `afk.sh` stops when the agent emits
-`<promise>NO MORE TASKS</promise>` (zero issues left in `ready-for-agent`) or
-when it hits `max_iterations`. You're left with **one commit per completed
-issue** on your branch, and each issue file's `Status:` line plus a dated
-`## Progress` note rewritten in place.
-
-Not every issue comes back `done`. Per `prompt.md`, the agent may also set:
-
-- `ready-for-human` -- agent-doable work is finished, but a human takes it from
-  here (design/UX/copy review, a judgment call between two valid approaches,
-  manual QA, or an architectural decision it wouldn't make alone).
-- `needs-info` -- blocked on an ambiguous spec or a question only you can answer.
-
-So the "cleanup" is really review + integrate:
-
-1. **Find what the agent flagged** -- `grep -rn "^Status:" docs/afk-workflow/backlog/`.
-   Anything `ready-for-human` / `needs-info` is the agent handing it back; read
-   its `## Progress` note.
-2. **Review the commits** -- `git log --oneline master..HEAD`, then `git show`
-   per commit (one issue = one commit keeps this clean).
-3. **Resolve the flagged issues** yourself.
-4. **Integrate** -- open a PR, run your normal review, merge, tear down the worktree.
-   If the branch holds several issues and you're unsure how to carve them into
-   reviewable PRs, run `/to-prs` -- it groups the backlog into an ordered,
-   dependency-safe `PR-PLAN.md`. Best run *before* the night shift (so each batch
-   is board-gated to one PR-sized run), but it still advises the split after the fact.
-
-### Spotted something to fix while reviewing?
-
-The loop only ever grabs the **next** `ready-for-agent` issue by priority -- you
-**cannot** point `once.sh`/`afk.sh` at a specific issue. Route the fix by type:
-
-- **Small, and you're already here** -- just fix it; reach for `/tdd` if it
-  deserves a regression test. No command needed.
-- **You want the night shift to do it** -- get a `ready-for-agent` issue back
-  onto disk, then re-run `afk.sh`:
-  - *re-open* the issue file -- flip its `Status:` back to `ready-for-agent` and
-    append a `## Progress` note describing the defect (lowest friction), **or**
-  - `/qa` to file it as a fresh issue, then `/triage` it to `ready-for-agent`
-    (use this when it's genuinely a new slice, not "issue 1 wasn't done").
-- **Hard or mysterious bug** -- `/diagnose` (reproduce → minimise → hypothesise
-  → instrument → fix → regression-test).
-
-## Prerequisites
-
-- **Claude Code CLI** on `PATH` (`claude`)
-- **Git Bash** (Windows) -- ships `jq`, `mktemp`, `grep`
-- A **test + type + build feedback loop** in the target repo (the agent codes
-  blind without one)
-- Issues created via `/to-issues` and labelled via `/triage` before launching
-  the loop
-
-## Layout
-
-```
-afk-workflow/
-├── .claude-plugin/
-│   ├── marketplace.json     # single-plugin marketplace manifest
-│   └── plugin.json          # plugin manifest
-├── skills/                  # 14 skills (verbatim Pocock + helpers)
-├── commands/
-│   └── afk.md               # /afk -- one in-session iteration
-├── scripts/
-│   ├── once.sh              # single headless iteration
-│   ├── afk.sh               # the headless loop
-│   └── prompt.md            # the Ralph task-selection prompt
-└── docs/
-    └── triage-labels.md     # canonical status vocabulary reference
+```bash
+bash tests/live-smoke.sh claude codex
+bash tests/live-smoke.sh codex claude
 ```
 
-## License
-
-MIT. See [LICENSE](./LICENSE) and the attribution note within it.
+See [LICENSE](LICENSE) for the MIT license and attribution.

@@ -1,11 +1,44 @@
 ---
 name: triage
-description: Triage issues through a state machine driven by triage roles. Use when user wants to create an issue, triage issues, review incoming bugs or feature requests, prepare issues for an AFK agent, or manage issue workflow.
+description: Move tickets through a state machine of triage roles, categorise, verify, grill if needed, and write agent-ready briefs.
+disable-model-invocation: true
 ---
+
+## Project configuration and skill loading
+
+Resolve <workflow-root> from the repository's AFK_WORKFLOW_ROOT pointer and read
+config/workflow.json plus relevant config notes under that root. If absent, tell
+the user to run setup-afk-skills. Never create a fallback docs tree.
+When a step uses another skill, Claude calls Skill with afk-workflow:<name>;
+Codex reads this project's .agents/skills/<name>/SKILL.md and follows it.
+Use the project installation, not an unrelated global skill. Explicit-only skills
+require user invocation; controller prompts explicitly select the AFK workflow.
+Headless runs reuse durable approvals and report missing input instead of asking.
+
 
 # Triage
 
+AFK Workflow v0.6.0 triages tickets. PR request-surface discovery is deferred.
+New tickets start needs-triage. Preserve their AFK/HITL type. Before setting
+ready-for-agent, confirm declared blockers, the acceptance criteria, and the
+approved test seams. Explicit HITL tickets remain ready-for-human.
+
+Record the following durable section in the ticket body (local or hosted), with
+the user's actual approval and the chosen interfaces, or an approved no-new-tests
+decision. Never manufacture approval just to satisfy the runner.
+
+```markdown
+## Approved test seams
+Approval: approved
+- <approved interface and observable behavior>
+```
+
+The runtime enforces this evidence even after a manual status override. Local
+completion uses done; GitHub completion closes the issue as completed. Closed
+wontfix/not-planned issues do not satisfy dependency edges.
+
 Move issues on the project issue tracker through a small state machine of triage roles.
+
 
 Every comment or issue posted to the issue tracker during triage **must** start with this disclaimer:
 
@@ -15,36 +48,37 @@ Every comment or issue posted to the issue tracker during triage **must** start 
 
 ## Reference docs
 
-- [AGENT-BRIEF.md](AGENT-BRIEF.md) — how to write durable agent briefs
-- [OUT-OF-SCOPE.md](OUT-OF-SCOPE.md) — how the `docs/afk-workflow/out-of-scope/` knowledge base works
+- [AGENT-BRIEF.md](AGENT-BRIEF.md): how to write durable agent briefs
+- [OUT-OF-SCOPE.md](OUT-OF-SCOPE.md): how the `<workflow-root>/out-of-scope/` knowledge base works
 
 ## Roles
 
 Two **category** roles:
 
-- `bug` — something is broken
-- `enhancement` — new feature or improvement
+- `bug`: something is broken
+- `enhancement`: new feature or improvement
 
 Five **state** roles:
 
-- `needs-triage` — maintainer needs to evaluate
-- `needs-info` — waiting on reporter for more information
-- `ready-for-agent` — fully specified, ready for an AFK agent
-- `ready-for-human` — needs human implementation
-- `wontfix` — will not be actioned
+- `needs-triage`: maintainer needs to evaluate
+- `needs-info`: waiting on reporter for more information
+- `ready-for-agent`: fully specified, ready for an AFK agent
+- `ready-for-human`: needs human implementation
+- `wontfix`: will not be actioned
+
 
 Every triaged issue should carry exactly one category role and one state role. If state roles conflict, flag it and ask the maintainer before doing anything else.
 
-These are canonical role names — the actual label strings used in the issue tracker may differ. The mapping should have been provided to you - run `/setup-afk-skills` if not.
+These are canonical role names. The actual label strings used in the issue tracker may differ. The mapping should have been provided to you. If not, tell the user to run `/setup-afk-skills`.
 
-State transitions: an unlabeled issue normally goes to `needs-triage` first; from there it moves to `needs-info`, `ready-for-agent`, `ready-for-human`, or `wontfix`. `needs-info` returns to `needs-triage` once the reporter replies. The maintainer can override at any time — flag transitions that look unusual and ask before proceeding.
+State transitions: an unlabeled issue normally goes to `needs-triage` first; from there it moves to `needs-info`, `ready-for-agent`, `ready-for-human`, or `wontfix`. `needs-info` returns to `needs-triage` once the reporter replies. The maintainer can override at any time; flag transitions that look unusual and ask before proceeding.
 
 ## Invocation
 
 The maintainer invokes `/triage` and describes what they want in natural language. Interpret the request and act. Examples:
 
 - "Show me anything that needs my attention"
-- "Let's look at #42"
+- "Let's look at #42" (ticket)
 - "Move #42 to ready-for-agent"
 - "What's ready for agents to pick up?"
 
@@ -52,29 +86,32 @@ The maintainer invokes `/triage` and describes what they want in natural languag
 
 Query the issue tracker and present three buckets, oldest first:
 
-1. **Unlabeled** — never triaged.
-2. **`needs-triage`** — evaluation in progress.
-3. **`needs-info` with reporter activity since the last triage notes** — needs re-evaluation.
+1. **Unlabeled**: never triaged.
+2. **`needs-triage`**: evaluation in progress.
+3. **`needs-info` with reporter activity since the last triage notes**: needs re-evaluation.
 
-Show counts and a one-line summary per issue. Let the maintainer pick.
 
-## Triage a specific issue
+Show counts and a one-line summary per item. Let the maintainer pick.
 
-1. **Gather context.** Read the full issue (body, comments, labels, reporter, dates). Parse any prior triage notes so you don't re-ask resolved questions. Explore the codebase using the project's domain glossary, respecting ADRs in the area. Read `docs/afk-workflow/out-of-scope/*.md` and surface any prior rejection that resembles this issue.
+## Triage a specific ticket
 
-2. **Recommend.** Tell the maintainer your category and state recommendation with reasoning, plus a brief codebase summary relevant to the issue. Wait for direction.
+1. **Gather context.** Read the full ticket (body, comments, labels, author, dates). Parse any prior triage notes so you don't re-ask resolved questions. Explore the codebase using the project's domain glossary, respecting ADRs in the area. Run two checks against the codebase: (a) **redundancy**: search for an existing implementation of the requested behavior by domain concept (not just the request's wording), and report where you looked. If found, it's an already-implemented `wontfix` (step 5). (b) **prior rejection**: read `<workflow-root>/out-of-scope/*.md` and surface any that resembles this request.
 
-3. **Reproduce (bugs only).** Before any grilling, attempt reproduction: read the reporter's steps, trace the relevant code, run tests or commands. Report what happened — successful repro with code path, failed repro, or insufficient detail (a strong `needs-info` signal). A confirmed repro makes a much stronger agent brief.
+2. **Recommend.** Tell the maintainer your category and state recommendation with reasoning, plus a brief codebase summary relevant to the request (including whether it's already implemented). Wait for direction.
 
-4. **Grill (if needed).** If the issue needs fleshing out, run a `/grill-with-docs` session.
+3. **Verify the claim.** Before any grilling, check that the claim holds up. For a bug, reproduce it from the reporter's steps. Report what happened: confirmed (with code path), failed, or insufficient detail (a strong `needs-info` signal). A confirmed verification makes a much stronger agent brief.
+
+4. **Grill (if needed).** If the request needs fleshing out, use the grill-with-docs skill, and grill it into shape a round of questions at a time, sharpening domain terms and updating `CONTEXT.md`/ADRs inline as decisions land.
 
 5. **Apply the outcome:**
-   - `ready-for-agent` — post an agent brief comment ([AGENT-BRIEF.md](AGENT-BRIEF.md)).
-   - `ready-for-human` — same structure as an agent brief, but note why it can't be delegated (judgment calls, external access, design decisions, manual testing).
-   - `needs-info` — post triage notes (template below).
-   - `wontfix` (bug) — polite explanation, then close.
-   - `wontfix` (enhancement) — write to `docs/afk-workflow/out-of-scope/`, link to it from a comment, then close ([OUT-OF-SCOPE.md](OUT-OF-SCOPE.md)).
-   - `needs-triage` — apply the role. Optional comment if there's partial progress.
+   - `ready-for-agent`: post an agent brief comment ([AGENT-BRIEF.md](AGENT-BRIEF.md)).
+   - `ready-for-human`: same structure as an agent brief, but note why it can't be delegated (judgment calls, external access, design decisions, manual testing).
+   - `needs-info`: post triage notes (template below).
+   - For `wontfix`, close the issue, with the comment depending on *why*:
+     - **Already implemented**: the change already exists in the codebase. Point to where it lives; do **not** write to `<workflow-root>/out-of-scope/` (that KB is for *rejected* requests, not built ones).
+     - **Rejected (bug)**: give a polite explanation, then close.
+     - **Rejected (enhancement)**: write to `<workflow-root>/out-of-scope/`, link to it from a comment, then close ([OUT-OF-SCOPE.md](OUT-OF-SCOPE.md)).
+   - `needs-triage`: apply the role. Optional comment if there's partial progress.
 
 ## Quick state override
 
@@ -100,4 +137,4 @@ Capture everything resolved during grilling under "established so far" so the wo
 
 ## Resuming a previous session
 
-If prior triage notes exist on the issue, read them, check whether the reporter has answered any outstanding questions, and present an updated picture before continuing. Don't re-ask resolved questions.
+If prior triage notes exist on the ticket, read them, check whether the reporter has answered any outstanding questions, and present an updated picture before continuing. Don't re-ask resolved questions.

@@ -29,11 +29,11 @@ _Avoid_: Client, buyer, account
 ## Example dialogue
 
 > **Dev:** "When a **Customer** places an **Order**, do we create the **Invoice** immediately?"
-> **Domain expert:** "No — an **Invoice** is only generated once a **Fulfillment** is confirmed."
+> **Domain expert:** "No; an **Invoice** is only generated once a **Fulfillment** is confirmed."
 
 ## Flagged ambiguities
 
-- "account" was used to mean both **Customer** and **User** — resolved: these are distinct concepts.
+- "account" was used to mean both **Customer** and **User**; resolved: these are distinct concepts.
 ```
 
 ## Rules
@@ -48,18 +48,18 @@ _Avoid_: Client, buyer, account
 
 ## Single vs multi-context repos
 
-**Single context (most repos):** One `docs/afk-workflow/context/CONTEXT.md`.
+**Single context (most repos):** One `<workflow-root>/context/CONTEXT.md`.
 
-**Multiple contexts:** A `docs/afk-workflow/context/CONTEXT-MAP.md` lists the contexts, where they live, and how they relate to each other:
+**Multiple contexts:** A `<workflow-root>/context/CONTEXT-MAP.md` lists the contexts, where they live, and how they relate to each other:
 
 ```md
 # Context Map
 
 ## Contexts
 
-- [Ordering](./src/ordering/CONTEXT.md) — receives and tracks customer orders
-- [Billing](./src/billing/CONTEXT.md) — generates invoices and processes payments
-- [Fulfillment](./src/fulfillment/CONTEXT.md) — manages warehouse picking and shipping
+- [Ordering](./src/ordering/CONTEXT.md); receives and tracks customer orders
+- [Billing](./src/billing/CONTEXT.md); generates invoices and processes payments
+- [Fulfillment](./src/fulfillment/CONTEXT.md); manages warehouse picking and shipping
 
 ## Relationships
 
@@ -70,8 +70,8 @@ _Avoid_: Client, buyer, account
 
 The skill infers which structure applies:
 
-- If `docs/afk-workflow/context/CONTEXT-MAP.md` exists, read it to find contexts
-- If only `docs/afk-workflow/context/CONTEXT.md` exists, single context
-- If neither exists, create `docs/afk-workflow/context/CONTEXT.md` lazily when the first term is resolved
+- If `<workflow-root>/context/CONTEXT-MAP.md` exists, read it to find contexts
+- If only `<workflow-root>/context/CONTEXT.md` exists, single context
+- If neither exists, create `<workflow-root>/context/CONTEXT.md` lazily when the first term is resolved
 
 When multiple contexts exist, infer which one the current topic relates to. If unclear, ask.

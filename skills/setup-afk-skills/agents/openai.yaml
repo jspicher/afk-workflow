@@ -1,0 +1,5 @@
+interface:
+  display_name: "Setup Afk Skills"
+  short_description: "AFK Workflow: setup afk skills"
+policy:
+  allow_implicit_invocation: false

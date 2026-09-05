@@ -3,6 +3,18 @@ name: grill-me
 description: Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Use when user wants to stress-test a plan, get grilled on their design, or mentions "grill me".
 ---
 
+## Project configuration and skill loading
+
+Resolve <workflow-root> from the repository's AFK_WORKFLOW_ROOT pointer and read
+config/workflow.json plus relevant config notes under that root. If absent, tell
+the user to run setup-afk-skills. Never create a fallback docs tree.
+When a step uses another skill, Claude calls Skill with afk-workflow:<name>;
+Codex reads this project's .agents/skills/<name>/SKILL.md and follows it.
+Use the project installation, not an unrelated global skill. Explicit-only skills
+require user invocation; controller prompts explicitly select the AFK workflow.
+Headless runs reuse durable approvals and report missing input instead of asking.
+
+
 Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
 
 Ask the questions one at a time.

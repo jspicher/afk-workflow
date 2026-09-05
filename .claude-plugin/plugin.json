@@ -1,12 +1,12 @@
 {
   "name": "afk-workflow",
-  "description": "Matt Pocock's AFK engineering workflow as a portable plugin: grill -> PRD -> vertical-slice issues -> triage -> PR plan -> TDD, plus a headless Ralph loop. Bundles 14 skills, the once/afk runner scripts, and a per-repo setup command.",
-  "version": "0.5.0",
+  "description": "Matt Pocock's AFK engineering workflow as a portable plugin: grill -> spec -> tickets -> triage -> implement -> independent review, plus a headless Ralph loop. Bundles 18 skills, the once/afk runner scripts, and a per-repo setup command.",
+  "version": "0.6.0",
   "author": {
     "name": "Jeff Spicher",
     "url": "https://github.com/jspicher"
   },
   "repository": "https://github.com/jspicher/afk-workflow",
   "license": "MIT",
-  "keywords": ["afk", "ralph", "tdd", "prd", "agentic", "matt-pocock", "vertical-slices", "workflow"]
+  "keywords": ["afk", "ralph", "tdd", "spec", "agentic", "matt-pocock", "vertical-slices", "workflow"]
 }
