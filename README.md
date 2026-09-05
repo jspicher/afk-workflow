@@ -19,32 +19,122 @@ explain the deliberate differences.
 
 ## The workflow
 
+Think of this as a **day shift** with you at the keyboard, followed by a **night
+shift** where the agents work through the tickets you approved. Start with one
+ticket so you can watch the whole cycle before launching a batch.
+
+Solid arrows show the usual route; dashed arrows are optional planning helpers.
+The chart uses short skill names; the table below gives the exact commands for
+Claude and Codex.
+
 ```mermaid
 flowchart TD
-  Setup[Setup: location, storage, roles, checks] --> Plan[Human planning / grilling]
-  Plan --> Spec[to-spec: approved specification]
-  Spec --> Tickets[to-tickets: dependency-aware slices]
-  Tickets --> Triage[triage: AFK/HITL, approvals, readiness]
-  Triage --> PRs[to-prs: plan release batches]
-  PRs --> Pick[Pick one ready, unblocked AFK ticket]
-  Pick --> Implement[Implementer: TDD at approved seams]
-  Implement --> Gate[Project checks]
-  Gate --> Review[Fresh reviewer: Standards and Spec]
-  Review -->|pass| Commit[Commit and verify ticket update]
-  Review -->|blocking findings| Repair[Implementer repairs: up to two attempts]
-  Gate -->|failure| Repair
-  Repair --> Gate
-  Repair -->|exhausted or human input| Save[Save patch and reports, restore source, escalate]
-  Save --> Pick
-  Commit --> Pick
-  Pick -->|no runnable work| Human[Human QA, resolve handoffs, integrate]
+  Start([Start here: install in your project]) --> Setup["setup-afk-skills — once per repo<br/>Choose docs or .docs, ticket storage, roles and checks"]
+
+  subgraph Day["DAY SHIFT — you and your agent plan the work"]
+    Idea["Your next feature, improvement or bug"]
+    Grill["grill-me / grill-with-docs<br/>Talk through the tricky parts"]
+    Spec["to-spec<br/>Save the agreed plan as spec.md"]
+    Tickets["to-tickets<br/>Break the work into small, connected tickets"]
+    Triage["triage<br/>Approve test seams and mark suitable tickets ready-for-agent"]
+    Batches["to-prs<br/>Plan manageable PR batches"]
+
+    Idea --> Tickets
+    Idea -. "need to explore it first?" .-> Grill
+    Grill -. "save the plan" .-> Spec
+    Spec -.-> Tickets
+    Tickets --> Triage
+    Triage -. "recommended for a larger backlog" .-> Batches
+  end
+
+  subgraph Night["NIGHT SHIFT — run from your project terminal"]
+    Launch["Try one ticket: bash docs/afk-workflow/scripts/once.sh<br/>Then a batch: bash docs/afk-workflow/scripts/afk.sh 10"]
+    Work["For each ready, unblocked AFK ticket<br/>Implement → run checks → independent review<br/>Default: Claude implements · Codex reviews"]
+    Outcome["Passed? Commit and mark done<br/>Still blocked after repairs? Save work and leave a human handoff"]
+    Launch --> Work --> Outcome
+  end
+
+  Setup --> Idea
+  Triage --> Launch
+  Batches -.-> Launch
+  Outcome --> Human["YOUR TURN — review the results<br/>Check the commits, resolve handoffs, do QA and integrate"]
+  Human -. "next idea or follow-up" .-> Idea
+
+  classDef action fill:#1f6feb,stroke:#0b3d91,color:#ffffff;
+  classDef optional fill:#f6f8fa,stroke:#8c959f,stroke-dasharray:5 5,color:#24292f;
+  classDef human fill:#dafbe1,stroke:#1a7f37,color:#24292f;
+  class Setup,Tickets,Triage,Launch,Work,Outcome action;
+  class Grill,Spec,Batches optional;
+  class Idea,Human human;
 ```
 
-Planning/grilling and `to-spec` are optional when you already have a clear ticket.
-**Triage stays required:** new tickets start `needs-triage`, not agent-ready.
-`to-prs` is recommended for batching; it creates a plan and printed gating commands,
-not pull requests. The runner implements one ticket at a time on the current branch.
-It does not push, open PRs, merge, or deploy.
+### Commands, in order
+
+Type the skill commands **inside your Claude or Codex session**, after
+[installation](#install). Pick the column for the CLI you're using:
+
+| Step | When to use it | Claude Code | Codex CLI |
+| --- | --- | --- | --- |
+| 1. Set up the project | Once per repo; rerun to change your settings | `/afk-workflow:setup-afk-skills` | `$setup-afk-skills` |
+| 2. Talk through the idea | Optional; useful when the scope is still fuzzy | `/afk-workflow:grill-me` or `/afk-workflow:grill-with-docs` | `$grill-me` or `$grill-with-docs` |
+| 3. Save the plan | Optional; capture the conversation in a specification | `/afk-workflow:to-spec` | `$to-spec` |
+| 4. Create tickets | When you need to turn a plan into a backlog | `/afk-workflow:to-tickets` | `$to-tickets` |
+| 5. Make tickets ready | **Required**; check scope, blockers, AFK/HITL type and test approval | `/afk-workflow:triage` | `$triage` |
+| 6. Plan PR batches | Recommended when several tickets need grouping | `/afk-workflow:to-prs` | `$to-prs` |
+
+Already have a clear ticket? Go straight to triage. Reporting a bug? Use
+`/afk-workflow:qa` in Claude or `$qa` in Codex, then triage the resulting ticket.
+New tickets start `needs-triage`; only approved, unblocked `ready-for-agent`
+tickets with an AFK type can run unattended. `to-prs` writes a plan and suggested
+batch commands; you decide when to create the actual PRs.
+
+**Same session or fresh?** Keep the planning conversation open for `to-spec` and
+`to-tickets`. Once the plan is saved, you can start fresh: triage and batch planning
+read the saved tickets. The runner starts a fresh implementer session for each
+ticket and a fresh reviewer for each review; repairs resume that ticket's
+implementer session.
+
+### 7. Try one ticket, then run a batch
+
+Open a **terminal at your project root** (Git Bash on Windows), on a dedicated
+branch or worktree with a clean starting state. These commands work with either
+CLI; `workflow.json` determines who implements and who reviews.
+
+```bash
+# Start with one ticket: implement, check, review, then commit if it passes
+bash docs/afk-workflow/scripts/once.sh
+
+# Happy with the result? Attempt up to 10 tickets
+bash docs/afk-workflow/scripts/afk.sh 10
+
+# Or swap the roles for this run: Codex implements, Claude reviews
+bash docs/afk-workflow/scripts/afk.sh 10 --implementer codex --reviewer claude
+```
+
+Chose `.docs` during setup? Use that path instead:
+
+```bash
+bash .docs/afk-workflow/scripts/once.sh
+bash .docs/afk-workflow/scripts/afk.sh 10
+```
+
+From an open agent session, `/afk-workflow:afk` in Claude or `$afk` in Codex also
+launches one configured ticket lifecycle. For hands-on implementation in your
+current session, use `/afk-workflow:implement` or `$implement` with the ticket.
+
+Checks and review happen automatically. The default repair allowance is two
+attempts after the initial implementation. If a ticket still needs human help,
+the runner saves its work, records the handoff and continues with independent
+tickets. The run stops when no runnable work remains or it reaches your ticket
+limit. See [Commands](#commands) for selection options and exit codes.
+
+### 8. Come back, review and integrate
+
+Read the run summary and ticket progress notes, inspect the commits, resolve
+`needs-info` / `ready-for-human` handoffs, and do your project's human QA. Then
+open and merge PRs through your normal process. The runner commits locally; it
+does not push, open PRs, merge or deploy. Feed any follow-up work back into triage
+for the next run.
 
 ## Install
 
